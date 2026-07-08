@@ -1,0 +1,232 @@
+{
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/.gradle/8.5/dependencies-accessors/5385321ecd6b24e2471e6fc7509ce1e7d170ab9a/sources/org/gradle/accessors/dm/LibrariesForLibs.java": {
+    "mtime": 1783236485.0928626,
+    "ast_hash": "c4ccab9f99c4b6c191aa6b7ad04d7779",
+    "semantic_hash": "c4ccab9f99c4b6c191aa6b7ad04d7779"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/.gradle/8.5/dependencies-accessors/5385321ecd6b24e2471e6fc7509ce1e7d170ab9a/sources/org/gradle/accessors/dm/LibrariesForLibsInPluginsBlock.java": {
+    "mtime": 1783236485.0988631,
+    "ast_hash": "2abb7400c15db303b6dc2fccd85d585b",
+    "semantic_hash": "2abb7400c15db303b6dc2fccd85d585b"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/build.gradle.kts": {
+    "mtime": 1783241977.9343529,
+    "ast_hash": "f25881f703f7d44926e0c45287681dcd",
+    "semantic_hash": "f25881f703f7d44926e0c45287681dcd"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/java/com/haio/bypass/HaioApp.kt": {
+    "mtime": 1783155588.2444074,
+    "ast_hash": "a6fc3d22ae8aeb7a820ffc23dec846f3",
+    "semantic_hash": "a6fc3d22ae8aeb7a820ffc23dec846f3"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/java/com/haio/bypass/MainActivity.kt": {
+    "mtime": 1783251142.9966972,
+    "ast_hash": "a17e38ee662d7a0577898922939c164c",
+    "semantic_hash": "a17e38ee662d7a0577898922939c164c"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/java/com/haio/bypass/config/AppConfig.kt": {
+    "mtime": 1783155605.8845618,
+    "ast_hash": "82dd00bfe5eff3555a7f739a76cf0026",
+    "semantic_hash": "82dd00bfe5eff3555a7f739a76cf0026"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/java/com/haio/bypass/config/ConfigManager.kt": {
+    "mtime": 1783155624.2017221,
+    "ast_hash": "6fbb5efb0a37a7f7cb48e1c2b7fe3c0b",
+    "semantic_hash": "6fbb5efb0a37a7f7cb48e1c2b7fe3c0b"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/java/com/haio/bypass/config/TrojanConfig.kt": {
+    "mtime": 1783155600.1435115,
+    "ast_hash": "bdbff6fd4a77856378f0e9af6001a6ad",
+    "semantic_hash": "bdbff6fd4a77856378f0e9af6001a6ad"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/java/com/haio/bypass/config/TrojanUrlParser.kt": {
+    "mtime": 1783155613.1886256,
+    "ast_hash": "63c8dd7b0f155945b86cf8d93c0964de",
+    "semantic_hash": "63c8dd7b0f155945b86cf8d93c0964de"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/java/com/haio/bypass/domain/DomainFetcher.kt": {
+    "mtime": 1783155642.9028857,
+    "ast_hash": "82d5b0589ca646f90b16a45a9259abed",
+    "semantic_hash": "82d5b0589ca646f90b16a45a9259abed"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/java/com/haio/bypass/domain/DomainRouter.kt": {
+    "mtime": 1783155633.897807,
+    "ast_hash": "db2c6a06d14a9f5051552cd45bc4abc9",
+    "semantic_hash": "db2c6a06d14a9f5051552cd45bc4abc9"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/java/com/haio/bypass/domain/DomainStore.kt": {
+    "mtime": 1783155652.974974,
+    "ast_hash": "6fead2b98d7f83db281b8745a587cc19",
+    "semantic_hash": "6fead2b98d7f83db281b8745a587cc19"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/java/com/haio/bypass/proxy/ProxyManager.kt": {
+    "mtime": 1783262219.5724957,
+    "ast_hash": "28c1d22ada7cd4d9ff51ccd618572f92",
+    "semantic_hash": "28c1d22ada7cd4d9ff51ccd618572f92"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/java/com/haio/bypass/proxy/SingBoxConfigGenerator.kt": {
+    "mtime": 1783272483.5009959,
+    "ast_hash": "48a50aa2228c61cc21406baf7575340e",
+    "semantic_hash": "48a50aa2228c61cc21406baf7575340e"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/java/com/haio/bypass/proxy/SingBoxManager.kt": {
+    "mtime": 1783272871.1594148,
+    "ast_hash": "dc16905b988ae78e78f1fe51ac2ce846",
+    "semantic_hash": "dc16905b988ae78e78f1fe51ac2ce846"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/java/com/haio/bypass/service/BootReceiver.kt": {
+    "mtime": 1783155756.0558767,
+    "ast_hash": "515966c23f07d581084ff1da2ec31576",
+    "semantic_hash": "515966c23f07d581084ff1da2ec31576"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/java/com/haio/bypass/service/HaioVpnService.kt": {
+    "mtime": 1783272945.1513584,
+    "ast_hash": "46bfdefc7e566e82c974a2ea6f69301a",
+    "semantic_hash": "46bfdefc7e566e82c974a2ea6f69301a"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/java/com/haio/bypass/service/VpnNotification.kt": {
+    "mtime": 1783155749.4158185,
+    "ast_hash": "b5c5829e7bb3c9c5cd81029e4eae74c9",
+    "semantic_hash": "b5c5829e7bb3c9c5cd81029e4eae74c9"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/java/com/haio/bypass/ui/HaioBypassApp.kt": {
+    "mtime": 1783259457.5580206,
+    "ast_hash": "46192a6b54a860eaff46cdb9fb542322",
+    "semantic_hash": "46192a6b54a860eaff46cdb9fb542322"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/java/com/haio/bypass/ui/components/DomainList.kt": {
+    "mtime": 1783155899.10213,
+    "ast_hash": "0220580b4849081a5e4fed204baa9fb6",
+    "semantic_hash": "0220580b4849081a5e4fed204baa9fb6"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/java/com/haio/bypass/ui/components/ProxyToggle.kt": {
+    "mtime": 1783155864.3588254,
+    "ast_hash": "442fbf3529d6b81ea63de6e3c3542d3c",
+    "semantic_hash": "442fbf3529d6b81ea63de6e3c3542d3c"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/java/com/haio/bypass/ui/components/StatusCard.kt": {
+    "mtime": 1783155889.065042,
+    "ast_hash": "3dbefaa450861b6d70cf92f9c4e776b7",
+    "semantic_hash": "3dbefaa450861b6d70cf92f9c4e776b7"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/java/com/haio/bypass/ui/screens/ConfigScreen.kt": {
+    "mtime": 1783155820.5624418,
+    "ast_hash": "c94a089d9a161dfa37304f23e21dcba6",
+    "semantic_hash": "c94a089d9a161dfa37304f23e21dcba6"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/java/com/haio/bypass/ui/screens/DomainsScreen.kt": {
+    "mtime": 1783248905.9920855,
+    "ast_hash": "9f8a985e3fa8986a7dfcd1cf49197327",
+    "semantic_hash": "9f8a985e3fa8986a7dfcd1cf49197327"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/java/com/haio/bypass/ui/screens/MainScreen.kt": {
+    "mtime": 1783251109.59754,
+    "ast_hash": "75f5223489c6a3d304c8cde7cd08f8d2",
+    "semantic_hash": "75f5223489c6a3d304c8cde7cd08f8d2"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/java/com/haio/bypass/ui/screens/SettingsScreen.kt": {
+    "mtime": 1783155855.2737458,
+    "ast_hash": "c9f39cbae104df63e8e42a02b46c540d",
+    "semantic_hash": "c9f39cbae104df63e8e42a02b46c540d"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/java/com/haio/bypass/ui/screens/SplashScreen.kt": {
+    "mtime": 1783251221.8427064,
+    "ast_hash": "9fe9e1ab829ee4caeacdf7572f6bdd87",
+    "semantic_hash": "9fe9e1ab829ee4caeacdf7572f6bdd87"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/java/com/haio/bypass/ui/theme/Color.kt": {
+    "mtime": 1783155764.751953,
+    "ast_hash": "84094c0ec72b66a17835650eba1520c1",
+    "semantic_hash": "84094c0ec72b66a17835650eba1520c1"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/java/com/haio/bypass/ui/theme/Theme.kt": {
+    "mtime": 1783155772.3830197,
+    "ast_hash": "26626216e19129d453434a3062e8997f",
+    "semantic_hash": "26626216e19129d453434a3062e8997f"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/build.gradle.kts": {
+    "mtime": 1783155512.5837455,
+    "ast_hash": "6c123a49cb6b9f474667c63298117a25",
+    "semantic_hash": "6c123a49cb6b9f474667c63298117a25"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/build.sh": {
+    "mtime": 1783248637.6360214,
+    "ast_hash": "09b380074c4cd3298c50ddd8e9cbd6be",
+    "semantic_hash": "09b380074c4cd3298c50ddd8e9cbd6be"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/gradlew": {
+    "mtime": 1783240901.1125932,
+    "ast_hash": "e40181a5e2385ead4a0e5712c07d83e1",
+    "semantic_hash": "e40181a5e2385ead4a0e5712c07d83e1"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/noproxy-build.sh": {
+    "mtime": 1783238425.505308,
+    "ast_hash": "f8d9d9d9852d290052bd4c2781550f41",
+    "semantic_hash": "f8d9d9d9852d290052bd4c2781550f41"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/settings.gradle.kts": {
+    "mtime": 1783155507.723703,
+    "ast_hash": "fa4c62a7f8b840ab50a55f09d2568cf7",
+    "semantic_hash": "fa4c62a7f8b840ab50a55f09d2568cf7"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/BUILD.md": {
+    "mtime": 1783249304.0528996,
+    "ast_hash": "46194fee02de9f39f51b48f1deddff9e",
+    "semantic_hash": "46194fee02de9f39f51b48f1deddff9e"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/PLAN.md": {
+    "mtime": 1783155465.9504836,
+    "ast_hash": "42aa2f8ad0bbbfe37e26b21c32b0f38c",
+    "semantic_hash": "42aa2f8ad0bbbfe37e26b21c32b0f38c"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/res/mipmap-hdpi/ic_launcher.png": {
+    "mtime": 1783250549.6885715,
+    "ast_hash": "e5f08cefb54412cc813bc9842a0291e6",
+    "semantic_hash": "e5f08cefb54412cc813bc9842a0291e6"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png": {
+    "mtime": 1783250549.813004,
+    "ast_hash": "35fd90bfd3daaf8eff6f0716d515e4b7",
+    "semantic_hash": "35fd90bfd3daaf8eff6f0716d515e4b7"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/res/mipmap-mdpi/ic_launcher.png": {
+    "mtime": 1783250549.2068965,
+    "ast_hash": "a7849244a585867950e614ed3555b099",
+    "semantic_hash": "a7849244a585867950e614ed3555b099"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png": {
+    "mtime": 1783250549.347385,
+    "ast_hash": "91eabaaee224ae54aef899fce0bd0ff8",
+    "semantic_hash": "91eabaaee224ae54aef899fce0bd0ff8"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/res/mipmap-xhdpi/ic_launcher.png": {
+    "mtime": 1783250549.9354298,
+    "ast_hash": "b3af80966524c90dcad7d194ea65d52f",
+    "semantic_hash": "b3af80966524c90dcad7d194ea65d52f"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png": {
+    "mtime": 1783250550.0598407,
+    "ast_hash": "e3958ceb54566553a6275499fd88f89e",
+    "semantic_hash": "e3958ceb54566553a6275499fd88f89e"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png": {
+    "mtime": 1783250548.994154,
+    "ast_hash": "2324166411045f78b25f80e23848bb21",
+    "semantic_hash": "2324166411045f78b25f80e23848bb21"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png": {
+    "mtime": 1783250549.0894883,
+    "ast_hash": "e3afd103d5895bd2d0781d798c1c7cdf",
+    "semantic_hash": "e3afd103d5895bd2d0781d798c1c7cdf"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png": {
+    "mtime": 1783250549.4477339,
+    "ast_hash": "096a11d9ab0133014098b58486fea7fe",
+    "semantic_hash": "096a11d9ab0133014098b58486fea7fe"
+  },
+  "/home/devcloud/Documents/mine/Haio-Forever/HaioBypass-android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png": {
+    "mtime": 1783250549.5651422,
+    "ast_hash": "7cfcadd86a20aba343faca9fc2e7fa53",
+    "semantic_hash": "7cfcadd86a20aba343faca9fc2e7fa53"
+  }
+}
