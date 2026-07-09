@@ -8,12 +8,14 @@ android {
     namespace = "com.haio.bypass"
     compileSdk = 34
 
+    useLibrary("org.apache.http.legacy")
+
     defaultConfig {
         applicationId = "com.haio.bypass"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0-beta"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -56,10 +58,6 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
-    }
-
-    androidResources {
-        noCompress("xray_arm64_v8a", "tun2socks_arm64_v8a", "tun_wrapper_arm64_v8a")
     }
 }
 

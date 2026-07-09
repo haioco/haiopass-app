@@ -137,26 +137,20 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
     }
 
     private fun extractBinary(): File? {
-        val rawName = "xray_arm64_v8a"
+        val assetName = "xray_arm64_v8a"
         val targetFile = File(workDir, "xray")
 
-        val resId = context.resources.getIdentifier(
-            rawName, "raw", context.packageName
-        )
-        if (resId == 0) {
-            Log.e(TAG, "Binary not found in resources: $rawName")
-            return null
-        }
-
-        val expectedSize = context.resources.openRawResourceFd(resId).use { it.length }
+        val expectedSize = try {
+            context.assets.openFd(assetName).use { it.length }
+        } catch (_: Exception) { 0L }
         if (targetFile.exists() && targetFile.length() == expectedSize) {
             Log.d(TAG, "Binary already exists at ${targetFile.absolutePath}")
             return targetFile
         }
 
-        Log.i(TAG, "Extracting binary: $rawName")
+        Log.i(TAG, "Extracting binary: $assetName")
         return try {
-            context.resources.openRawResource(resId).use { input ->
+            context.assets.open(assetName).use { input ->
                 targetFile.outputStream().use { output ->
                     input.copyTo(output)
                 }
@@ -168,7 +162,7 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
             Log.d(TAG, "Binary permissions set: exe=${targetFile.canExecute()}")
             targetFile
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to extract binary: $rawName", e)
+            Log.e(TAG, "Failed to extract binary: $assetName", e)
             null
         }
     }
@@ -249,26 +243,20 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
     }
 
     private fun extractWrapperBinary(): File? {
-        val rawName = "tun_wrapper_arm64_v8a"
+        val assetName = "tun_wrapper_arm64_v8a"
         val targetFile = File(workDir, "tun_wrapper")
 
-        val resId = context.resources.getIdentifier(
-            rawName, "raw", context.packageName
-        )
-        if (resId == 0) {
-            Log.e(TAG, "Binary not found in resources: $rawName")
-            return null
-        }
-
-        val expectedSize = context.resources.openRawResourceFd(resId).use { it.length }
+        val expectedSize = try {
+            context.assets.openFd(assetName).use { it.length }
+        } catch (_: Exception) { 0L }
         if (targetFile.exists() && targetFile.length() == expectedSize) {
             Log.d(TAG, "Wrapper already exists at ${targetFile.absolutePath}")
             return targetFile
         }
 
-        Log.i(TAG, "Extracting wrapper: $rawName")
+        Log.i(TAG, "Extracting wrapper: $assetName")
         return try {
-            context.resources.openRawResource(resId).use { input ->
+            context.assets.open(assetName).use { input ->
                 targetFile.outputStream().use { output ->
                     input.copyTo(output)
                 }
@@ -279,32 +267,26 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
             Log.d(TAG, "Wrapper permissions set: exe=${targetFile.canExecute()}")
             targetFile
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to extract wrapper: $rawName", e)
+            Log.e(TAG, "Failed to extract wrapper: $assetName", e)
             null
         }
     }
 
     private fun extractTun2SocksBinary(): File? {
-        val rawName = "tun2socks_arm64_v8a"
+        val assetName = "tun2socks_arm64_v8a"
         val targetFile = File(workDir, "tun2socks")
 
-        val resId = context.resources.getIdentifier(
-            rawName, "raw", context.packageName
-        )
-        if (resId == 0) {
-            Log.e(TAG, "tun2socks binary not found in resources: $rawName")
-            return null
-        }
-
-        val expectedSize = context.resources.openRawResourceFd(resId).use { it.length }
+        val expectedSize = try {
+            context.assets.openFd(assetName).use { it.length }
+        } catch (_: Exception) { 0L }
         if (targetFile.exists() && targetFile.length() == expectedSize) {
             patchElfHeader(targetFile)
             return targetFile
         }
 
-        Log.i(TAG, "Extracting tun2socks binary: $rawName")
+        Log.i(TAG, "Extracting tun2socks binary: $assetName")
         return try {
-            context.resources.openRawResource(resId).use { input ->
+            context.assets.open(assetName).use { input ->
                 targetFile.outputStream().use { output ->
                     input.copyTo(output)
                 }
@@ -316,7 +298,7 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
             Log.d(TAG, "tun2socks permissions set: exe=${targetFile.canExecute()}")
             targetFile
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to extract tun2socks binary: $rawName", e)
+            Log.e(TAG, "Failed to extract tun2socks binary: $assetName", e)
             null
         }
     }

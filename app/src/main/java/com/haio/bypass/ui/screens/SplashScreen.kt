@@ -16,8 +16,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.haio.bypass.R
+import com.haio.bypass.ui.theme.Accent
 import com.haio.bypass.ui.theme.Background
-import com.haio.bypass.ui.theme.Connected
 
 @Composable
 fun SplashScreen(onSplashFinished: () -> Unit) {
@@ -65,16 +65,10 @@ fun SplashScreen(onSplashFinished: () -> Unit) {
                 text = "HaioBypass",
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
-                color = Connected
+                color = Accent
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = "VPN Bypass",
-                fontSize = 14.sp,
-                color = Connected.copy(alpha = 0.7f)
-            )
+            
         }
     }
 }

@@ -10,9 +10,9 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Green80,
-    secondary = GreenGrey80,
-    tertiary = Teal80,
+    primary = Blue80,
+    secondary = Slate80,
+    tertiary = Cyan80,
     background = Background,
     surface = Surface,
     surfaceVariant = SurfaceVariant,

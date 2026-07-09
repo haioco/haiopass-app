@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">HaioBypass</string>
-    <string name="vpn_notification_channel">HaioBypass VPN</string>
+    <string name="vpn_notification_channel">HaioBypass</string>
     <string name="vpn_notification_title">HaioBypass Active</string>
-    <string name="vpn_notification_text">VPN is running. Tap to open.</string>
-    <string name="vpn_permission_needed">VPN permission is required to start HaioBypass.</string>
+    <string name="vpn_notification_text">Service is running. Tap to open.</string>
+    <string name="vpn_permission_needed">Permission is required to start HaioBypass.</string>
     <string name="connected">Connected</string>
     <string name="disconnected">Disconnected</string>
     <string name="connecting">Connecting…</string>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">HaioBypass</string>
+    <string name="vpn_notification_channel">HaioBypass</string>
+    <string name="vpn_notification_title">HaioBypass فعال</string>
+    <string name="vpn_notification_text">سرویس در حال اجراست. برای باز کردن ضربه بزنید.</string>
+    <string name="vpn_permission_needed">برای اجرای HaioBypass دسترسی لازم است.</string>
+    <string name="connected">متصل</string>
+    <string name="disconnected">قطع</string>
+    <string name="connecting">در حال اتصال…</string>
+    <string name="domains_active">تعداد دامنه‌های فعال: %d</string>
+    <string name="no_domains">هیچ دامنه‌ای بارگذاری نشده</string>
+    <string name="domain_fetch_error">دریافت دامنه‌ها ناموفق بود</string>
+    <string name="trojan_url_hint">trojan://password@server:443?sni=server.com</string>
+    <string name="save">ذخیره</string>
+    <string name="refresh">به‌روزرسانی</string>
+    <string name="main">خانه</string>
+    <string name="domains">دامنه‌ها</string>
+    <string name="settings">تنظیمات</string>
+    <string name="buy_config">خرید کانفیگ</string>
+    <string name="auto_start">اجرای خودکار در بوت</string>
+    <string name="about">درباره</string>
+    <string name="version">نسخه %s</string>
+    <string name="clear_config">پاک کردن کانفیگ</string>
+    <string name="connection_test">تست اتصال</string>
+    <string name="last_fetch">آخرین دریافت: %s</string>
+</resources>

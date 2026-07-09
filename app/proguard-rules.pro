@@ -24,3 +24,6 @@
 -dontwarn okio.**
 -keep class okhttp3.** { *; }
 -keep class okio.** { *; }
+
+# Keep raw resources (accessed via getIdentifier)
+-keep class com.haio.bypass.R$raw { *; }

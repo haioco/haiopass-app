@@ -21,11 +21,15 @@ class DomainStore(context: Context) {
     private val _lastFetchTime = MutableStateFlow(0L)
     val lastFetchTime: StateFlow<Long> = _lastFetchTime.asStateFlow()
 
+    private val _domains = MutableStateFlow<List<String>>(emptyList())
+    val domains: StateFlow<List<String>> = _domains.asStateFlow()
+
     init {
         val cached = loadCachedDomains()
         if (cached.isNotEmpty()) {
             router.setDomains(cached)
             _domainCount.value = router.getDomainCount()
+            _domains.value = cached
         }
         _lastFetchTime.value = prefs.getLong(KEY_LAST_FETCH, 0)
     }
@@ -33,14 +37,31 @@ class DomainStore(context: Context) {
     fun setDomains(domains: List<String>) {
         router.setDomains(domains)
         _domainCount.value = router.getDomainCount()
+        _domains.value = domains
         saveCachedDomains(domains)
         _lastFetchTime.value = System.currentTimeMillis()
         prefs.edit().putLong(KEY_LAST_FETCH, _lastFetchTime.value).apply()
     }
 
+    fun addDomain(domain: String) {
+        val current = _domains.value.toMutableList()
+        val normalized = domain.trim().lowercase()
+        if (normalized.isNotEmpty() && !current.contains(normalized)) {
+            current.add(normalized)
+            setDomains(current)
+        }
+    }
+
+    fun removeDomain(domain: String) {
+        val current = _domains.value.toMutableList()
+        if (current.remove(domain)) {
+            setDomains(current)
+        }
+    }
+
     fun shouldProxy(host: String): Boolean = router.shouldProxy(host)
 
-    fun getDomains(): List<String> = router.getDomains()
+    fun getDomains(): List<String> = _domains.value
 
     fun getDomainCount(): Int = router.getDomainCount()
 

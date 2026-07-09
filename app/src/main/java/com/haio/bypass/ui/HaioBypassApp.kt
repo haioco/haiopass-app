@@ -11,7 +11,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -31,10 +33,10 @@ import com.haio.bypass.ui.screens.SettingsScreen
 import kotlinx.coroutines.launch
 
 sealed class Screen(val route: String, val title: String) {
-    data object Main : Screen("main", "Main")
-    data object Config : Screen("config", "Config")
-    data object Domains : Screen("domains", "Domains")
-    data object Settings : Screen("settings", "Settings")
+    data object Main : Screen("main", "خانه")
+    data object Config : Screen("config", "کانفیگ")
+    data object Domains : Screen("domains", "دامنه‌ها")
+    data object Settings : Screen("settings", "تنظیمات")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,6 +44,7 @@ sealed class Screen(val route: String, val title: String) {
 fun HaioBypassApp(
     requestVpnPermission: (onResult: (Boolean) -> Unit) -> Unit
 ) {
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
     val context = LocalContext.current
     val configManager = remember { ConfigManager(context) }
     val domainStore = remember { DomainStore(context) }
@@ -63,9 +66,9 @@ fun HaioBypassApp(
     val statusMessage by remember(proxyStatusMessage, proxyState) {
         derivedStateOf {
             when (proxyState) {
-                ProxyManager.ProxyState.CONNECTING -> "Connecting..."
-                ProxyManager.ProxyState.CONNECTED -> proxyStatusMessage.ifEmpty { "Connected" }
-                ProxyManager.ProxyState.DISCONNECTED -> "Disconnected"
+                ProxyManager.ProxyState.CONNECTING -> "در حال اتصال..."
+                ProxyManager.ProxyState.CONNECTED -> proxyStatusMessage.ifEmpty { "متصل" }
+                ProxyManager.ProxyState.DISCONNECTED -> "قطع شده"
             }
         }
     }
@@ -97,10 +100,10 @@ fun HaioBypassApp(
                 val currentDestination = navBackStackEntry?.destination
 
                 val items = listOf(
-                    Triple(Screen.Main, Icons.Default.Home, "Main"),
-                    Triple(Screen.Config, Icons.Default.VpnKey, "Config"),
-                    Triple(Screen.Domains, Icons.Default.Language, "Domains"),
-                    Triple(Screen.Settings, Icons.Default.Settings, "Settings")
+                    Triple(Screen.Main, Icons.Default.Home, "خانه"),
+                    Triple(Screen.Config, Icons.Default.VpnKey, "کانفیگ"),
+                    Triple(Screen.Domains, Icons.Default.Language, "دامنه‌ها"),
+                    Triple(Screen.Settings, Icons.Default.Settings, "تنظیمات")
                 )
 
                 items.forEach { (screen, icon, label) ->
@@ -143,7 +146,7 @@ fun HaioBypassApp(
                         if (shouldStart) {
                             if (config.trojanConfig == null) {
                                 scope.launch {
-                                    snackbarHostState.showSnackbar("Configure Trojan URL first")
+                                    snackbarHostState.showSnackbar("ابتداً آدرس تروجان را تنظیم کنید")
                                 }
                                 navController.navigate(Screen.Config.route) {
                                     popUpTo(navController.graph.findStartDestination().id) {
@@ -166,7 +169,16 @@ fun HaioBypassApp(
                         }
                     },
                     onRefreshDomains = {
-                        domainStore.setDomains(domainStore.getDomains())
+                        scope.launch {
+                            val fetcher = com.haio.bypass.domain.DomainFetcher()
+                            val domains = fetcher.fetch()
+                            if (domains.isNotEmpty()) {
+                                domainStore.setDomains(domains)
+                                snackbarHostState.showSnackbar("دامنه‌ها به‌روزرسانی شدند: ${domains.size}")
+                            } else {
+                                snackbarHostState.showSnackbar("به‌روزرسانی دامنه‌ها ناموفق بود")
+                            }
+                        }
                     },
                     onConfigureClick = {
                         navController.navigate(Screen.Config.route) {
@@ -185,7 +197,7 @@ fun HaioBypassApp(
                     configManager = configManager,
                     onSave = {
                         scope.launch {
-                            snackbarHostState.showSnackbar("Config saved")
+                            snackbarHostState.showSnackbar("کانفیگ ذخیره شد")
                         }
                     }
                 )
@@ -213,5 +225,6 @@ fun HaioBypassApp(
                 )
             }
         }
+    }
     }
 }
