@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (
     SubscriptionListView, SubscriptionDetailView,
     SubscriptionCreateView, SubscriptionAutoActivateView,
-    SubscriptionRenewView,
+    SubscriptionRenewView, SubscriptionDeviceDetailView,
 )
 
 urlpatterns = [
@@ -11,4 +11,5 @@ urlpatterns = [
     path('subscriptions/create/', SubscriptionCreateView.as_view(), name='subscription-create'),
     path('subscriptions/auto-activate/', SubscriptionAutoActivateView.as_view(), name='subscription-auto-activate'),
     path('subscriptions/<uuid:uuid>/renew/', SubscriptionRenewView.as_view(), name='subscription-renew'),
+    path('subscriptions/<uuid:uuid>/device-status/', SubscriptionDeviceDetailView.as_view(), name='subscription-device-status'),
 ]

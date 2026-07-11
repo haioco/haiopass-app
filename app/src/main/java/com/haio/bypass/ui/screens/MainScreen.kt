@@ -1,52 +1,51 @@
 package com.haio.bypass.ui.screens
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.*
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Dns
-import androidx.compose.material.icons.filled.PowerSettingsNew
-import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.VpnKey
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.haio.bypass.config.AppConfig
-import com.haio.bypass.ui.theme.Accent
-import com.haio.bypass.ui.theme.Connecting
-import com.haio.bypass.ui.theme.Connected
-import com.haio.bypass.ui.theme.Disconnected
-import com.haio.bypass.ui.theme.Surface
+import com.haio.bypass.config.SubscriptionInfo
+import com.haio.bypass.ui.components.ProxyToggle
+import com.haio.bypass.ui.components.TrafficInfoCard
+import com.haio.bypass.ui.theme.*
+import com.haio.bypass.ui.util.ShimmerCard
+import com.haio.bypass.ui.util.trafficProgressColor
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
     config: AppConfig,
     isVpnRunning: Boolean,
     statusMessage: String,
     domainCount: Int,
+    subscriptionInfo: SubscriptionInfo? = null,
+    isRefreshingSub: Boolean = false,
+    subFetchError: String? = null,
+    onRefreshAll: () -> Unit = {},
+    onRefreshSub: () -> Unit = {},
     onToggleVpn: (Boolean) -> Unit,
     onRefreshDomains: () -> Unit,
     onConfigureClick: () -> Unit = {}
@@ -55,193 +54,336 @@ fun MainScreen(
         val isConnecting = statusMessage.contains("اتصال", ignoreCase = true) ||
                 statusMessage.contains("Connecting", ignoreCase = true)
 
-        val statusColor by animateColorAsState(
-            targetValue = when {
-                isConnecting -> Connecting
-                isVpnRunning -> Connected
-                else -> Disconnected
-            },
-            animationSpec = tween(250),
-            label = "statusColor"
-        )
-
-        val toggleScale by animateFloatAsState(
-            targetValue = if (isVpnRunning) 1.06f else 1f,
-            animationSpec = tween(180),
-            label = "toggleScale"
-        )
-
-        val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-        val pulse by infiniteTransition.animateFloat(
-            initialValue = 0.85f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(tween(900), RepeatMode.Reverse),
-            label = "pulse"
-        )
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically)
+        Box(
+            modifier = Modifier.fillMaxSize()
         ) {
-            Box(
+            Column(
                 modifier = Modifier
-                    .size(150.dp)
-                    .scale(toggleScale * if (isConnecting) pulse else 1f)
-                    .clip(CircleShape)
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(statusColor.copy(alpha = 0.22f), Color.Transparent)
-                        )
-                    )
-                    .border(
-                        width = if (isVpnRunning || isConnecting) 2.dp else 1.dp,
-                        color = statusColor.copy(alpha = if (isVpnRunning) 0.6f else 0.3f),
-                        shape = CircleShape
-                    )
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) { onToggleVpn(!isVpnRunning) },
-                contentAlignment = Alignment.Center
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.PowerSettingsNew,
-                        contentDescription = if (isVpnRunning) "قطع اتصال" else "اتصال",
-                        tint = statusColor,
-                        modifier = Modifier.size(48.dp)
+                    ProxyToggle(
+                        isActive = isVpnRunning,
+                        isConnecting = isConnecting,
+                        onClick = { onToggleVpn(!isVpnRunning) }
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    when {
-                        isConnecting -> Text(
-                            text = "در حال اتصال",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = statusColor
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                AnimatedVisibility(
+                    visible = true,
+                    enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { it / 2 }
+                ) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .shadow(4.dp, RoundedCornerShape(20.dp)),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
                         )
-                        isVpnRunning -> Text(
-                            text = "متصل",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = statusColor
-                        )
-                        else -> Text(
-                            text = "برای اتصال ضربه بزنید",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = statusColor
-                        )
+                    ) {
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Shield,
+                                        contentDescription = null,
+                                        tint = if (isVpnRunning) Connected
+                                        else if (isConnecting) Connecting
+                                        else Disconnected,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(
+                                            text = "وضعیت اتصال",
+                                            fontSize = 13.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = if (isVpnRunning) statusMessage.ifEmpty { "متصل" }
+                                            else if (isConnecting) statusMessage.ifEmpty { "در حال اتصال" }
+                                            else "قطع شده",
+                                            fontSize = 17.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isVpnRunning) Connected
+                                            else if (isConnecting) Connecting
+                                            else Disconnected
+                                        )
+                                    }
+                                }
+                                FilledIconButton(
+                                    onClick = onRefreshDomains,
+                                    modifier = Modifier.size(40.dp),
+                                    colors = IconButtonDefaults.filledIconButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                    ),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Refresh,
+                                        contentDescription = "به\u200Cروزرسانی",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
-            }
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Surface),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(18.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                Spacer(modifier = Modifier.height(12.dp))
+
+                subscriptionInfo?.let { sub ->
+                    AnimatedVisibility(
+                        visible = true,
+                        enter = fadeIn(tween(600)) + slideInVertically(tween(600)) { it / 2 }
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Shield,
-                                contentDescription = null,
-                                tint = statusColor,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = if (isVpnRunning) statusMessage.ifEmpty { "متصل" }
-                                else if (isConnecting) statusMessage.ifEmpty { "در حال اتصال" }
-                                else "قطع شده",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = statusColor
-                            )
-                        }
-                        IconButton(
-                            onClick = onRefreshDomains,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Refresh,
-                                contentDescription = "به‌روزرسانی دامنه‌ها",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
-                            )
+                        Column {
+                            TrafficInfoCard(subscription = sub)
+
+                            if (isRefreshingSub) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                LinearProgressIndicator(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(2.dp)
+                                        .clip(RoundedCornerShape(1.dp)),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                                )
+                            }
+
+                            subFetchError?.let { error ->
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { onRefreshSub() },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Refresh,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "$error. برای تلاش مجدد ضربه بزنید.",
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                AnimatedVisibility(
+                    visible = true,
+                    enter = fadeIn(tween(800)) + slideInVertically(tween(800)) { it / 2 }
+                ) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .shadow(4.dp, RoundedCornerShape(20.dp)),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.VpnKey,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = "تنظیمات تروجان",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
 
-                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                            Spacer(modifier = Modifier.height(14.dp))
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                            config.trojanConfig?.let { tc ->
+                                ServerInfoRow(
+                                    icon = Icons.Default.Storage,
+                                    label = "سرور",
+                                    value = tc.server
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                ServerInfoRow(
+                                    icon = Icons.Default.Public,
+                                    label = "SNI",
+                                    value = tc.sni
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                ServerInfoRow(
+                                    icon = Icons.Default.Dns,
+                                    label = "پورت",
+                                    value = tc.port.toString()
+                                )
+                            } ?: run {
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { onConfigureClick() },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(14.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            Icons.Default.AddCircleOutline,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Text(
+                                            text = "برای تنظیم تروجان ضربه بزنید",
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
 
-                    config.trojanConfig?.let { tc ->
-                        InfoRow(icon = Icons.Default.VpnKey, label = "سرور", value = tc.server)
-                        InfoRow(icon = Icons.Default.Public, label = "SNI", value = tc.sni)
-                        InfoRow(icon = Icons.Default.Dns, label = "پورت", value = tc.port.toString())
-                    } ?: run {
+                Spacer(modifier = Modifier.height(12.dp))
+
+                AnimatedVisibility(
+                    visible = true,
+                    enter = fadeIn(tween(1000)) + slideInVertically(tween(1000)) { it / 2 }
+                ) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .shadow(4.dp, RoundedCornerShape(20.dp)),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        )
+                    ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                                .clickable { onConfigureClick() }
-                                .padding(14.dp),
+                                .padding(20.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                Icons.Default.VpnKey,
-                                contentDescription = null,
-                                tint = Accent,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                text = "برای تنظیم تروجان ضربه بزنید",
-                                color = Accent,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(Connected.copy(alpha = 0.12f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Language,
+                                        contentDescription = null,
+                                        tint = Connected,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "دامنه\u200Cهای بای\u200Cپس",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = if (domainCount > 0) "$domainCount دامنه فعال" else "هیچ دامنه\u200Cای بارگذاری نشده",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            Surface(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(
+                                        if (domainCount > 0) Connected.copy(alpha = 0.12f)
+                                        else Disconnected.copy(alpha = 0.12f)
+                                    ),
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color.Transparent
+                            ) {
+                                Text(
+                                    text = if (domainCount > 0) "$domainCount" else "0",
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (domainCount > 0) Connected else Disconnected
+                                )
+                            }
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    InfoRow(
-                        icon = Icons.Default.Dns,
-                        label = "دامنه‌ها",
-                        value = if (domainCount > 0) "$domainCount فعال" else "هیچ‌کدام بارگذاری نشده"
-                    )
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }
 }
 
 @Composable
-private fun InfoRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+private fun ServerInfoRow(
+    icon: ImageVector,
     label: String,
     value: String
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -250,7 +392,7 @@ private fun InfoRow(
                 imageVector = icon,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(15.dp)
+                modifier = Modifier.size(16.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(

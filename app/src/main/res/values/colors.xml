@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="primary">#FF42A5F5</color>
-    <color name="on_primary">#FF0D0D0D</color>
-    <color name="primary_container">#FF103154</color>
-    <color name="secondary">#FF607D8B</color>
-    <color name="background">#FF0D0D0D</color>
-    <color name="surface">#FF171717</color>
-    <color name="error">#FFCF6679</color>
-    <color name="connected">#FF40C4FF</color>
-    <color name="disconnected">#FF616161</color>
-    <color name="status_bar">#FF0D0D0D</color>
-    <color name="accent">#FF8AB4F8</color>
+    <color name="primary">#FF1976D2</color>
+    <color name="on_primary">#FFFFFFFF</color>
+    <color name="primary_container">#FFBBDEFB</color>
+    <color name="secondary">#FF546E7A</color>
+    <color name="background">#FFFFFFFF</color>
+    <color name="surface">#FFFFFFFF</color>
+    <color name="error">#FFD32F2F</color>
+    <color name="connected">#FF1976D2</color>
+    <color name="disconnected">#FF9E9E9E</color>
+    <color name="status_bar">#FFFFFFFF</color>
+    <color name="accent">#FF1976D2</color>
 </resources>

@@ -12,3 +12,11 @@ data class AppConfig(
     val lastFetchTime: Long = 0,
     val autostart: Boolean = false
 )
+
+data class SubscriptionInfo(
+    val title: String,
+    val trafficTotalMb: Float,
+    val trafficUsedMb: Float,
+    val trafficPercent: Float,
+    val expiryDate: String
+)

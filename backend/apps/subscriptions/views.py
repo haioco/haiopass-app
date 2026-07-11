@@ -180,6 +180,23 @@ class SubscriptionAutoActivateView(generics.GenericAPIView):
         }, status=status.HTTP_201_CREATED)
 
 
+class SubscriptionDeviceDetailView(generics.GenericAPIView):
+    permission_classes = (permissions.AllowAny,)
+    serializer_class = SubscriptionSerializer
+
+    def post(self, request, uuid):
+        device_id = request.data.get('device_id', '')
+        if not device_id:
+            raise ValidationError("device_id is required.")
+
+        try:
+            subscription = Subscription.objects.get(uuid=uuid, device_id=device_id, status='active')
+        except Subscription.DoesNotExist:
+            raise ValidationError("Subscription not found.")
+
+        return Response(SubscriptionSerializer(subscription).data)
+
+
 class SubscriptionRenewView(generics.GenericAPIView):
     permission_classes = (permissions.IsAuthenticated,)
     serializer_class = SubscriptionSerializer

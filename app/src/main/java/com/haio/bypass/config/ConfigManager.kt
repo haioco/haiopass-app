@@ -41,11 +41,11 @@ class ConfigManager(context: Context) {
 
     private fun saveConfig(config: AppConfig) {
         val raw = json.encodeToString(config)
-        prefs.edit().putString(KEY_CONFIG, raw).apply()
+        prefs.edit().putString(KEY_CONFIG, raw).commit()
     }
 
     fun clear() {
-        prefs.edit().clear().apply()
+        prefs.edit().clear().commit()
         _config.value = AppConfig()
     }
 

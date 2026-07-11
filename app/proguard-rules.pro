@@ -25,5 +25,13 @@
 -keep class okhttp3.** { *; }
 -keep class okio.** { *; }
 
+# Retrofit + Gson
+-dontwarn retrofit2.**
+-keep class retrofit2.** { *; }
+-keepattributes Signature
+-keepattributes Exceptions
+-keepclassmembers class com.haio.bypass.network.api.ApiModels$** { *; }
+-keep class com.google.gson.** { *; }
+
 # Keep raw resources (accessed via getIdentifier)
 -keep class com.haio.bypass.R$raw { *; }

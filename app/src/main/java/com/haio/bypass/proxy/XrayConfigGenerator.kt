@@ -76,7 +76,7 @@ class XrayConfigGenerator {
                     put("tag", JsonPrimitive("direct"))
                     put("protocol", JsonPrimitive("freedom"))
                     put("settings", buildJsonObject {
-                        put("domainStrategy", JsonPrimitive("UseIP"))
+                        put("domainStrategy", JsonPrimitive("UseIPv4"))
                     })
                 })
                 add(buildJsonObject {
@@ -87,7 +87,10 @@ class XrayConfigGenerator {
 
             put("dns", buildJsonObject {
                 put("servers", buildJsonArray {
-                    add(JsonPrimitive("8.8.8.8"))
+                    add(buildJsonObject {
+                        put("address", JsonPrimitive("8.8.8.8"))
+                        put("queryStrategy", JsonPrimitive("UseIPv4"))
+                    })
                 })
             })
 

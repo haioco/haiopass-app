@@ -21,6 +21,8 @@ class TunPacketHandler(
     private var tunPfd: ParcelFileDescriptor? = null
     private var tunInput: FileInputStream? = null
     private var tunOutputFd: java.io.FileDescriptor? = null
+    private var tunnelWriteErrorCount = 0
+    private var lastTunnelWriteErrorLog = 0L
 
     fun start(): Int {
         val pair = ParcelFileDescriptor.createSocketPair()
@@ -91,15 +93,38 @@ class TunPacketHandler(
                 directBuf.clear()
                 directBuf.put(buffer, 0, bytesRead)
                 directBuf.flip()
-                Os.write(outFd, directBuf)
-            } catch (e: ErrnoException) {
-                if (e.errno == OsConstants.EAGAIN) continue
-                if (coroutineContext.isActive) Log.w(TAG, "Error reading from tunnel", e)
-                delay(1)
-            } catch (e: Exception) {
-                if (coroutineContext.isActive) Log.w(TAG, "Error reading from tunnel", e)
-                delay(1)
-            }
+                try {
+                    Os.write(outFd, directBuf)
+                } catch (e: ErrnoException) {
+                    if (e.errno == OsConstants.EINVAL) {
+                        tunnelWriteErrorCount++
+                        val now = System.currentTimeMillis()
+                        if (now - lastTunnelWriteErrorLog > 30000) {
+                            Log.d(TAG, "Dropped $tunnelWriteErrorCount invalid TUN packets (EINVAL, likely IPv6 or oversized)")
+                            lastTunnelWriteErrorLog = now
+                            tunnelWriteErrorCount = 0
+                        }
+                    } else {
+                        throw e
+                    }
+                }
+} catch (e: ErrnoException) {
+                    if (e.errno == OsConstants.EAGAIN) continue
+                    if (e.errno == OsConstants.EINVAL) {
+                        tunnelWriteErrorCount++
+                        val now = System.currentTimeMillis()
+                        if (now - lastTunnelWriteErrorLog > 5000) {
+                            if (coroutineContext.isActive) Log.d(TAG, "EINVAL on tunnel write (count=$tunnelWriteErrorCount), dropping packet")
+                            lastTunnelWriteErrorLog = now
+                        }
+                        continue
+                    }
+                    if (coroutineContext.isActive) Log.w(TAG, "Error reading from tunnel", e)
+                    delay(1)
+                } catch (e: Exception) {
+                    if (coroutineContext.isActive) Log.w(TAG, "Error reading from tunnel", e)
+                    delay(1)
+                }
         }
     }
 

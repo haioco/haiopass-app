@@ -76,6 +76,9 @@ dependencies {
     implementation(libs.navigation.compose)
 
     implementation(libs.okhttp)
+    implementation(libs.okhttp.logging)
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.gson)
     implementation(libs.kotlinx.coroutines)
     implementation(libs.kotlinx.serialization)
     implementation(libs.datastore)
