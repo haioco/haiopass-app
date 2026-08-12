@@ -51,3 +51,13 @@ class SubscriptionSerializer(serializers.ModelSerializer):
 
 class SubscriptionActivateSerializer(serializers.Serializer):
     device_id = serializers.CharField(max_length=64, required=False, help_text='Android device unique ID')
+
+
+class CreateSubscriptionAsyncSerializer(serializers.Serializer):
+    plan = serializers.SlugRelatedField(
+        slug_field='slug',
+        queryset=Plan.objects.filter(is_active=True),
+        help_text='Plan slug to subscribe to'
+    )
+    title = serializers.CharField(max_length=30, min_length=2)
+    device_id = serializers.CharField(max_length=64, required=False, default='')

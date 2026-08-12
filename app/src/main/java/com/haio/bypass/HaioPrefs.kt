@@ -62,6 +62,21 @@ class HaioPrefs(context: Context) {
         get() = prefs.getString(KEY_SUB_EXPIRY, null)
         set(value) { prefs.edit().putString(KEY_SUB_EXPIRY, value).commit() }
 
+    var pendingPaymentPlanSlug: String?
+        get() = prefs.getString(KEY_PENDING_PLAN_SLUG, null)
+        set(value) { prefs.edit().putString(KEY_PENDING_PLAN_SLUG, value).apply() }
+
+    var pendingPaymentId: Int
+        get() = prefs.getInt(KEY_PENDING_PAYMENT_ID, -1)
+        set(value) { prefs.edit().putInt(KEY_PENDING_PAYMENT_ID, value).apply() }
+
+    fun clearPendingPayment() {
+        prefs.edit()
+            .remove(KEY_PENDING_PLAN_SLUG)
+            .remove(KEY_PENDING_PAYMENT_ID)
+            .apply()
+    }
+
     var jwtAccessToken: String?
         get() = prefs.getString(KEY_JWT_ACCESS, null)
         set(value) = prefs.edit().putString(KEY_JWT_ACCESS, value).apply()
@@ -93,5 +108,7 @@ class HaioPrefs(context: Context) {
         private const val KEY_SUB_TRAFFIC_TOTAL_MB = "subscription_traffic_total_mb"
         private const val KEY_SUB_TRAFFIC_USED_MB = "subscription_traffic_used_mb"
         private const val KEY_SUB_EXPIRY = "subscription_expiry"
+        private const val KEY_PENDING_PLAN_SLUG = "pending_plan_slug"
+        private const val KEY_PENDING_PAYMENT_ID = "pending_payment_id"
     }
 }

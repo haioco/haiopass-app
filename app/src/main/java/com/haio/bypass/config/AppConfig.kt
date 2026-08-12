@@ -15,6 +15,8 @@ data class AppConfig(
 
 data class SubscriptionInfo(
     val title: String,
+    val planName: String = "",
+    val isPaid: Boolean = false,
     val trafficTotalMb: Float,
     val trafficUsedMb: Float,
     val trafficPercent: Float,

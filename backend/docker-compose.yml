@@ -54,7 +54,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: celery -A config worker -l info -Q default
+    command: celery -A config worker -l info -Q celery
 
   celery_beat:
     build: .

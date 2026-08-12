@@ -12,6 +12,7 @@ data class Plan(
     @SerializedName("traffic_mb") val trafficMb: Double,
     @SerializedName("price_toman") val priceToman: Int,
     @SerializedName("duration_days") val durationDays: Int,
+    // @SerializedName("bazaar_sku") val bazaarSku: String? = null,
     val features: Map<String, String>? = null
 )
 
@@ -45,8 +46,8 @@ data class Subscription(
 )
 
 data class SubscriptionListResponse(
-    val data: List<Subscription>,
-    @SerializedName("total_items") val totalItems: Int
+    val results: List<Subscription>,  // DRF paginated response
+    val count: Int
 )
 
 data class AutoActivateRequest(
@@ -170,4 +171,14 @@ data class PaymentHistoryResponse(
 
 data class DetailResponse(
     val detail: String
+)
+
+fun Subscription.toSubscriptionInfo() = com.haio.bypass.config.SubscriptionInfo(
+    title = title,
+    planName = planDetail?.name ?: "",
+    isPaid = (planDetail?.priceToman ?: 0) > 0,
+    trafficTotalMb = trafficTotalMb.toFloat(),
+    trafficUsedMb = trafficUsageMb.toFloat(),
+    trafficPercent = trafficUsagePercent.toFloat(),
+    expiryDate = expiredAt ?: ""
 )

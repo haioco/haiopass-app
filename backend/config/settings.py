@@ -10,10 +10,11 @@ env = environ.Env(
     TAHRIM_API_BASE_URL=(str, 'http://tahrim.haiocloud.com:5000'),
     TAHRIM_AUTH_TOKEN=(str, 'Bearer access_token_1'),
     TAHRIM_DOMAIN=(str, 'tahrim.haiocloud.com'),
-    CAFE_BAZAR_CLIENT_ID=(str, ''),
-    CAFE_BAZAR_CLIENT_SECRET=(str, ''),
-    CAFE_BAZAR_PACKAGE_NAME=(str, 'com.haio.bypass'),
-    CAFE_BAZAR_API_URL=(str, 'https://pardakht.cafebazaar.ir/devapi/v2/api'),
+    # CAFE_BAZAR_CLIENT_ID=(str, ''),
+    # CAFE_BAZAR_CLIENT_SECRET=(str, ''),
+    # CAFE_BAZAR_PACKAGE_NAME=(str, 'com.haio.bypass'),
+    # CAFE_BAZAR_API_URL=(str, 'https://pardakht.cafebazaar.ir/devapi/v2/api'),
+    # CAFE_BAZAR_REDIRECT_URI=(str, ''),
     JWT_ACCESS_TOKEN_LIFETIME_MINUTES=(int, 120),
     JWT_REFRESH_TOKEN_LIFETIME_DAYS=(int, 7),
     CSRF_TRUSTED_ORIGINS=(list, ['https://haiobypass.haiocloud.com']),
@@ -130,7 +131,7 @@ REST_FRAMEWORK = {
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'HaioBypass API',
-    'DESCRIPTION': 'Backend for HaioBypass Android app — plan purchase, anti-sanction activation, Cafe Bazar payment',
+    'DESCRIPTION': 'Backend for HaioBypass Android app — plan purchase, anti-sanction activation',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,
@@ -153,11 +154,12 @@ TAHRIM_API_BASE_URL = env('TAHRIM_API_BASE_URL')
 TAHRIM_AUTH_TOKEN = env('TAHRIM_AUTH_TOKEN')
 TAHRIM_DOMAIN = env('TAHRIM_DOMAIN')
 
-# Cafe Bazar Payment
-CAFE_BAZAR_CLIENT_ID = env('CAFE_BAZAR_CLIENT_ID')
-CAFE_BAZAR_CLIENT_SECRET = env('CAFE_BAZAR_CLIENT_SECRET')
-CAFE_BAZAR_PACKAGE_NAME = env('CAFE_BAZAR_PACKAGE_NAME')
-CAFE_BAZAR_API_URL = env('CAFE_BAZAR_API_URL')
+# Cafe Bazar Payment (DISABLED — kept for reference)
+# CAFE_BAZAR_CLIENT_ID = env('CAFE_BAZAR_CLIENT_ID')
+# CAFE_BAZAR_CLIENT_SECRET = env('CAFE_BAZAR_CLIENT_SECRET')
+# CAFE_BAZAR_PACKAGE_NAME = env('CAFE_BAZAR_PACKAGE_NAME')
+# CAFE_BAZAR_API_URL = env('CAFE_BAZAR_API_URL')
+# CAFE_BAZAR_REDIRECT_URI = env('CAFE_BAZAR_REDIRECT_URI')
 
 # Celery
 CELERY_BROKER_URL = env('CELERY_BROKER_URL')
@@ -168,9 +170,3 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
-CELERY_BEAT_SCHEDULE = {
-    'sync-traffic-usage-every-10-min': {
-        'task': 'subscriptions.sync_traffic_usage',
-        'schedule': 600.0,
-    },
-}

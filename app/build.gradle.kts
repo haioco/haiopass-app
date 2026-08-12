@@ -15,7 +15,7 @@ android {
         minSdk = 26
         targetSdk = 34
         versionCode = 2
-        versionName = "1.1.0-beta"
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -26,10 +26,23 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("../haio-release.keystore")
+            storePassword = System.getenv("KEYSTORE_PASS") ?: "haio2025secure"
+            keyAlias = System.getenv("KEY_ALIAS") ?: "haio-release"
+            keyPassword = System.getenv("KEY_PASS") ?: "haio2025secure"
+        }
+    }
+
     buildTypes {
+        debug {
+            isMinifyEnabled = false
+        }
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -81,9 +94,8 @@ dependencies {
     implementation(libs.retrofit.gson)
     implementation(libs.kotlinx.coroutines)
     implementation(libs.kotlinx.serialization)
-    implementation(libs.datastore)
-    implementation(libs.work.runtime)
     implementation("com.google.android.material:material:1.11.0")
+    // implementation("com.github.cafebazaar.Poolakey:poolakey:2.2.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

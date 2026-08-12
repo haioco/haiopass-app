@@ -69,16 +69,37 @@ fun TrafficInfoCard(
                     }
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = subscription.planName.ifEmpty { subscription.title },
+                                fontSize = if (compact) 14.sp else 15.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = if (subscription.isPaid)
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                else
+                                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f)
+                            ) {
+                                Text(
+                                    text = if (subscription.isPaid) "پلن پولی" else "پلن رایگان",
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (subscription.isPaid)
+                                        MaterialTheme.colorScheme.primary
+                                    else
+                                        MaterialTheme.colorScheme.secondary
+                                )
+                            }
+                        }
                         Text(
-                            text = subscription.title,
-                            fontSize = if (compact) 14.sp else 15.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "اشتراک فعال",
+                            text = subscription.title.ifEmpty { "اشتراک فعال" },
                             fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }

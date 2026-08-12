@@ -6,3 +6,4 @@ urlpatterns = [
     path('payments/verify/', PaymentVerifyView.as_view(), name='payment-verify'),
     path('payments/history/', PaymentHistoryView.as_view(), name='payment-history'),
 ]
+

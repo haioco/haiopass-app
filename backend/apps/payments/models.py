@@ -3,6 +3,24 @@ from django.contrib.auth.models import User
 from apps.plans.models import Plan
 
 
+class OAuthToken(models.Model):
+    access_token = models.TextField()
+    refresh_token = models.TextField()
+    expires_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ('-created_at',)
+
+    def __str__(self):
+        return f"OAuthToken (expires {self.expires_at})"
+
+    @classmethod
+    def get_latest(cls):
+        return cls.objects.order_by('-created_at').first()
+
+
 class Payment(models.Model):
     STATUS_CHOICES = (
         ('pending', 'Pending'),
@@ -13,7 +31,7 @@ class Payment(models.Model):
     )
 
     GATEWAY_CHOICES = (
-        ('cafebazar', 'Cafe Bazar'),
+        # ('cafebazar', 'Cafe Bazar (DISABLED)'),
     )
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='payments')

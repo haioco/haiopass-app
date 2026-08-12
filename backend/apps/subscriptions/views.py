@@ -11,10 +11,12 @@ from .models import Subscription
 from .serializers import (
     SubscriptionSerializer,
     SubscriptionActivateSerializer,
+    CreateSubscriptionAsyncSerializer,
 )
 from .services.anti_sanction import (
     anti_sanction_client, generate_username, generate_password
 )
+from .tasks import activate_subscription
 from apps.plans.models import Plan
 
 
@@ -88,6 +90,79 @@ class SubscriptionCreateView(generics.CreateAPIView):
         return Response(
             SubscriptionSerializer(subscription, context=self.get_serializer_context()).data,
             status=status.HTTP_201_CREATED,
+        )
+
+    def _check_free_plan_eligibility(self, user, plan, device_id):
+        if device_id:
+            existing = Subscription.objects.filter(
+                plan__price_toman=0,
+                device_id=device_id,
+                status__in=('active', 'pending'),
+            ).exists()
+            if existing:
+                raise ValidationError("This device has already used the free plan.")
+        else:
+            existing = Subscription.objects.filter(
+                user=user,
+                plan__price_toman=0,
+                status__in=('active', 'pending'),
+            ).exists()
+            if existing:
+                raise ValidationError("You have already used the free plan.")
+
+
+class SubscriptionCreateAsyncView(generics.GenericAPIView):
+    """
+    Create a subscription asynchronously via Celery.
+    The subscription is created with status='pending' and a Celery task
+    activates it on the anti-sanction server.
+    """
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = CreateSubscriptionAsyncSerializer
+
+    @transaction.atomic
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = request.user
+        plan = serializer.validated_data['plan']
+        title = serializer.validated_data['title']
+        device_id = serializer.validated_data.get('device_id', '')
+
+        if plan.price_toman == 0:
+            self._check_free_plan_eligibility(user, plan, device_id)
+
+        if plan.price_toman > 0 and user.profile.balance < plan.price_toman:
+            raise ValidationError(
+                f"Insufficient balance. Need {plan.price_toman} Toman, you have {user.profile.balance} Toman."
+            )
+
+        username = generate_username()
+        password = generate_password()
+
+        subscription = Subscription(
+            uuid=uuid.uuid4(),
+            user=user,
+            plan=plan,
+            title=title,
+            status='pending',
+            username=username,
+            password=password,
+            device_id=device_id,
+        )
+        subscription.save()
+
+        if plan.price_toman > 0:
+            if not user.profile.withdraw(plan.price_toman):
+                subscription.delete()
+                raise ValidationError("Balance deduction failed.")
+
+        activate_subscription.delay(subscription.id)
+
+        return Response(
+            SubscriptionSerializer(subscription, context=self.get_serializer_context()).data,
+            status=status.HTTP_202_ACCEPTED,
         )
 
     def _check_free_plan_eligibility(self, user, plan, device_id):

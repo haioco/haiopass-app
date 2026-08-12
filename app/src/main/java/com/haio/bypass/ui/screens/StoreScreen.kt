@@ -27,7 +27,6 @@ import com.haio.bypass.config.ConfigManager
 import com.haio.bypass.config.SubscriptionInfo
 import com.haio.bypass.config.TrojanUrlParser
 import com.haio.bypass.network.api.ApiClient
-import com.haio.bypass.network.api.CreatePaymentRequest
 import com.haio.bypass.network.api.CreateSubscriptionRequest
 import com.haio.bypass.network.api.Plan
 import com.haio.bypass.ui.theme.*
@@ -169,11 +168,7 @@ fun StoreScreen(
                     EnhancedPlanCard(
                         plan = plan,
                         isActive = subscriptionInfo?.title == plan.name,
-                        onBuy = { method ->
-                            scope.launch {
-                                handlePurchase(prefs, configManager, plan, method, onShowSnackbar)
-                            }
-                        }
+                        onBuy = { scope.launch { handlePurchase(prefs, configManager, plan, onShowSnackbar) } }
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                 }
@@ -184,16 +179,11 @@ fun StoreScreen(
     }
 }
 
-enum class PurchaseMethod(val label: String) {
-    CAFEBAZAR("پرداخت با کافه\u200Cبازار"),
-    BALANCE("پرداخت با کیف پول")
-}
-
 @Composable
 private fun EnhancedPlanCard(
     plan: Plan,
     isActive: Boolean = false,
-    onBuy: (PurchaseMethod) -> Unit
+    onBuy: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -335,45 +325,21 @@ private fun EnhancedPlanCard(
 
             if (!isActive) {
                 Spacer(modifier = Modifier.height(14.dp))
-                Row(
+                Button(
+                    onClick = onBuy,
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
                 ) {
-                    Button(
-                        onClick = { onBuy(PurchaseMethod.CAFEBAZAR) },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
-                    ) {
-                        Icon(
-                            Icons.Default.ShoppingCart,
-                            contentDescription = null,
-                            modifier = Modifier.size(17.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("کافه\u200Cبازار", fontSize = 14.sp)
-                    }
-
-                    OutlinedButton(
-                        onClick = { onBuy(PurchaseMethod.BALANCE) },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(
-                            brush = androidx.compose.ui.graphics.SolidColor(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                            )
-                        )
-                    ) {
-                        Icon(
-                            Icons.Default.AccountBalanceWallet,
-                            contentDescription = null,
-                            modifier = Modifier.size(17.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("کیف پول", fontSize = 14.sp)
-                    }
+                    Icon(
+                        Icons.Default.AccountBalanceWallet,
+                        contentDescription = null,
+                        modifier = Modifier.size(17.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("خرید با کیف پول", fontSize = 14.sp)
                 }
             }
         }
@@ -391,7 +357,6 @@ private suspend fun handlePurchase(
     prefs: HaioPrefs,
     configManager: ConfigManager,
     plan: Plan,
-    method: PurchaseMethod,
     onShowSnackbar: (String) -> Unit
 ) {
     try {
@@ -402,47 +367,34 @@ private suspend fun handlePurchase(
             return
         }
 
-        when (method) {
-            PurchaseMethod.CAFEBAZAR -> {
-                val paymentResponse = api.createPayment(CreatePaymentRequest(plan = plan.slug))
-                if (paymentResponse.isSuccessful) {
-                    val payment = paymentResponse.body()!!
-                    onShowSnackbar("درخواست پرداخت ثبت شد. ID: ${payment.id}")
-                } else {
-                    onShowSnackbar("خطا در ایجاد پرداخت: ${paymentResponse.code()}")
-                }
-            }
-            PurchaseMethod.BALANCE -> {
-                val subResponse = api.createSubscription(
-                    CreateSubscriptionRequest(
-                        plan = plan.slug,
-                        title = plan.name,
-                        deviceId = prefs.deviceId
-                    )
-                )
-                if (subResponse.isSuccessful) {
-                    val sub = subResponse.body()!!
-                    val configUrl = sub.trojanConfigUrl
-                    if (configUrl != null) {
-                        prefs.trojanConfigUrl = configUrl
-                        prefs.subscriptionUuid = sub.uuid
-                        prefs.subscriptionTitle = sub.title
-                        prefs.subscriptionTrafficMb = sub.trafficTotalMb.toFloat()
-                        prefs.subscriptionTrafficUsedMb = sub.trafficUsageMb.toFloat()
-                        prefs.subscriptionExpiry = sub.expiredAt
-                        val parsed = TrojanUrlParser.parse(configUrl)
-                        if (parsed != null) {
-                            configManager.updateConfig {
-                                it.copy(trojanUrl = configUrl, trojanConfig = parsed)
-                            }
-                        }
+        val subResponse = api.createSubscription(
+            CreateSubscriptionRequest(
+                plan = plan.slug,
+                title = plan.name,
+                deviceId = prefs.deviceId
+            )
+        )
+        if (subResponse.isSuccessful) {
+            val sub = subResponse.body()!!
+            val configUrl = sub.trojanConfigUrl
+            if (configUrl != null) {
+                prefs.trojanConfigUrl = configUrl
+                prefs.subscriptionUuid = sub.uuid
+                prefs.subscriptionTitle = sub.title
+                prefs.subscriptionTrafficMb = sub.trafficTotalMb.toFloat()
+                prefs.subscriptionTrafficUsedMb = sub.trafficUsageMb.toFloat()
+                prefs.subscriptionExpiry = sub.expiredAt
+                val parsed = TrojanUrlParser.parse(configUrl)
+                if (parsed != null) {
+                    configManager.updateConfig {
+                        it.copy(trojanUrl = configUrl, trojanConfig = parsed)
                     }
-                    onShowSnackbar("اشتراک ${plan.name} فعال شد!")
-                } else {
-                    val detail = subResponse.errorBody()?.string() ?: "خطای نامشخص"
-                    onShowSnackbar("خرید ناموفق: $detail")
                 }
             }
+            onShowSnackbar("اشتراک ${plan.name} فعال شد!")
+        } else {
+            val detail = subResponse.errorBody()?.string() ?: "خطای نامشخص"
+            onShowSnackbar("خرید ناموفق: $detail")
         }
     } catch (e: Exception) {
         onShowSnackbar("خطای شبکه: ${e.message}")

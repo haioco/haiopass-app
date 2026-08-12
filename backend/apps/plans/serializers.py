@@ -11,6 +11,7 @@ class PlanSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'name', 'slug', 'description',
             'traffic_bytes', 'traffic_gb', 'traffic_mb',
-            'price_toman', 'duration_days', 'features', 'sort_order',
+            'price_toman', 'duration_days',
+            'features', 'sort_order',
         )
         read_only_fields = ('id', 'slug', 'traffic_gb', 'traffic_mb')

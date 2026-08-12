@@ -8,6 +8,10 @@ class Plan(models.Model):
     traffic_bytes = models.BigIntegerField(help_text='Total traffic quota in bytes')
     price_toman = models.PositiveIntegerField(help_text='Price in Toman')
     duration_days = models.PositiveIntegerField(default=30, help_text='Subscription duration in days')
+    # bazaar_sku = models.CharField(
+    #     max_length=200, blank=True, default='',
+    #     help_text='Cafe Bazaar product SKU (must match product ID in developer console) (DISABLED)'
+    # )
     is_active = models.BooleanField(default=True)
     is_visible = models.BooleanField(default=True, help_text='Show in plan listing')
     features = models.JSONField(default=dict, blank=True, help_text='Key-value feature list')

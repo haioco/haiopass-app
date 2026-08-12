@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.flow.StateFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -52,7 +53,9 @@ sealed class Screen(val route: String, val title: String) {
 @Composable
 fun HaioBypassApp(
     prefs: HaioPrefs,
-    requestVpnPermission: (onResult: (Boolean) -> Unit) -> Unit
+    requestVpnPermission: (onResult: (Boolean) -> Unit) -> Unit,
+    externalSnackMessage: StateFlow<String?>,
+    purchaseRefreshTrigger: Int = 0
 ) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         val context = LocalContext.current
@@ -79,6 +82,8 @@ fun HaioBypassApp(
 
             val stored = SubscriptionInfo(
                 title = prefs.subscriptionTitle ?: "",
+                planName = "",
+                isPaid = false,
                 trafficTotalMb = prefs.subscriptionTrafficMb,
                 trafficUsedMb = prefs.subscriptionTrafficUsedMb,
                 trafficPercent = if (prefs.subscriptionTrafficMb > 0)
@@ -101,13 +106,7 @@ fun HaioBypassApp(
                 }
                 if (response.isSuccessful) {
                     val sub = response.body()!!
-                    val info = SubscriptionInfo(
-                        title = sub.title,
-                        trafficTotalMb = sub.trafficTotalMb.toFloat(),
-                        trafficUsedMb = sub.trafficUsageMb.toFloat(),
-                        trafficPercent = sub.trafficUsagePercent.toFloat(),
-                        expiryDate = sub.expiredAt ?: ""
-                    )
+                    val info = sub.toSubscriptionInfo()
                     subscriptionInfo = info
                     prefs.subscriptionTitle = sub.title
                     prefs.subscriptionTrafficMb = sub.trafficTotalMb.toFloat()
@@ -120,13 +119,7 @@ fun HaioBypassApp(
                         val retry = ApiClient.getApiService().subscriptionDetail(uuid)
                         if (retry.isSuccessful) {
                             val sub = retry.body()!!
-                            val info = SubscriptionInfo(
-                                title = sub.title,
-                                trafficTotalMb = sub.trafficTotalMb.toFloat(),
-                                trafficUsedMb = sub.trafficUsageMb.toFloat(),
-                                trafficPercent = sub.trafficUsagePercent.toFloat(),
-                                expiryDate = sub.expiredAt ?: ""
-                            )
+                            val info = sub.toSubscriptionInfo()
                             subscriptionInfo = info
                             prefs.subscriptionTitle = sub.title
                             prefs.subscriptionTrafficMb = sub.trafficTotalMb.toFloat()
@@ -147,6 +140,10 @@ fun HaioBypassApp(
 
         LaunchedEffect(refreshTrigger) {
             if (refreshTrigger > 0) fetchSubscription()
+        }
+
+        LaunchedEffect(purchaseRefreshTrigger) {
+            if (purchaseRefreshTrigger > 0) fetchSubscription()
         }
 
         LaunchedEffect(proxyState) {
@@ -180,6 +177,12 @@ fun HaioBypassApp(
         }
 
         val snackbarHostState = remember { SnackbarHostState() }
+        val externalMsg by externalSnackMessage.collectAsState()
+
+        LaunchedEffect(externalMsg) {
+            val msg = externalMsg ?: return@LaunchedEffect
+            snackbarHostState.showSnackbar(msg)
+        }
 
         val isMainScreen = navController.currentBackStackEntryAsState().value
             ?.destination?.hierarchy?.any { it.route == Screen.Main.route } == true

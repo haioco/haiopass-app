@@ -7,6 +7,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- <uses-permission android:name="ir.cafebazaar.pardakht.permission.PAY_THROUGH_BAZAAR" /> -->
 
     <application
         android:name=".HaioApp"
@@ -32,7 +33,11 @@
         <service
             android:name=".service.HaioVpnService"
             android:exported="false"
+            android:foregroundServiceType="specialUse"
             android:permission="android.permission.BIND_VPN_SERVICE">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="vpn_proxy_tunnel" />
             <intent-filter>
                 <action android:name="android.net.action.VPN_SERVICE" />
             </intent-filter>

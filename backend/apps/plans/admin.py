@@ -13,6 +13,7 @@ class PlanAdmin(admin.ModelAdmin):
     fieldsets = (
         ('Basic Info', {'fields': ('name', 'slug', 'description')}),
         ('Pricing & Quota', {'fields': ('traffic_bytes', 'price_toman', 'duration_days')}),
+        # ('Cafe Bazaar', {'fields': ('bazaar_sku',)}),
         ('Display', {'fields': ('is_active', 'is_visible', 'features', 'sort_order')}),
         ('Timestamps', {'fields': ('created_at', 'updated_at')}),
     )
