@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">HaioBypass</string>
+    <string name="vpn_notification_channel">HaioBypass</string>
+    <string name="vpn_notification_title">HaioBypass Active</string>
+    <string name="vpn_notification_text">Service is running. Tap to open.</string>
+    <string name="vpn_permission_needed">Permission is required to start HaioBypass.</string>
+    <string name="connected">Connected</string>
+    <string name="disconnected">Disconnected</string>
+    <string name="connecting">Connecting…</string>
+    <string name="domains_active">%d domains active</string>
+    <string name="no_domains">No domains loaded</string>
+    <string name="domain_fetch_error">Failed to fetch domains</string>
+    <string name="trojan_url_hint">trojan://password@server:443?sni=server.com</string>
+    <string name="save">Save</string>
+    <string name="refresh">Refresh</string>
+    <string name="main">Main</string>
+    <string name="domains">Domains</string>
+    <string name="settings">Settings</string>
+    <string name="buy_config">Buy Config</string>
+    <string name="auto_start">Auto-start on boot</string>
+    <string name="about">About</string>
+    <string name="version">Version %s</string>
+    <string name="clear_config">Clear Config</string>
+    <string name="connection_test">Test Connection</string>
+    <string name="last_fetch">Last fetch: %s</string>
+</resources>

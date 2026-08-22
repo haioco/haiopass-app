@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary">#FF1976D2</color>
+    <color name="on_primary">#FFFFFFFF</color>
+    <color name="primary_container">#FFBBDEFB</color>
+    <color name="secondary">#FF546E7A</color>
+    <color name="background">#FFFFFFFF</color>
+    <color name="surface">#FFFFFFFF</color>
+    <color name="error">#FFD32F2F</color>
+    <color name="connected">#FF1976D2</color>
+    <color name="disconnected">#FF9E9E9E</color>
+    <color name="status_bar">#FFFFFFFF</color>
+    <color name="accent">#FF1976D2</color>
+</resources>
