@@ -23,6 +23,12 @@ class HaioVpnService : VpnService() {
     private var isRunning = false
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // The service is started with startForegroundService(), so the system
+        // requires startForeground() to be called no matter how early we exit
+        // (missing config, stop action, ...). Failing to do so crashes the app
+        // with RemoteServiceException ("did not then call Service.startForeground").
+        startForegroundCompat()
+
         if (intent?.action == ACTION_STOP) {
             Log.i(TAG, "Stop action received")
             stopVpn()
@@ -43,11 +49,10 @@ class HaioVpnService : VpnService() {
         if (trojanConfig == null) {
             Log.e(TAG, "No Trojan config, stopping")
             ProxyManager.resetState()
+            stopForegroundCompat()
             stopSelf()
             return START_NOT_STICKY
         }
-
-        startForegroundCompat()
 
         vpnInterface = establishVpnInterface()
         if (vpnInterface == null) {
@@ -77,8 +82,11 @@ class HaioVpnService : VpnService() {
                 stopVpn()
                 stopForegroundCompat()
                 stopSelf()
-            } catch (e: Exception) {
-                Log.e(TAG, "Unexpected error starting proxy", e)
+            } catch (t: Throwable) {
+                // Catch Throwable, not just Exception: missing API classes surface
+                // as NoClassDefFoundError on older Android versions and must not
+                // crash the app.
+                Log.e(TAG, "Unexpected error starting proxy", t)
                 stopVpn()
                 stopForegroundCompat()
                 stopSelf()
@@ -89,7 +97,11 @@ class HaioVpnService : VpnService() {
     }
 
     private fun startForegroundCompat() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            // FOREGROUND_SERVICE_TYPE_SPECIAL_USE only exists on API 34+; passing
+            // the raw bit on older versions is an unknown type that some OEM
+            // ROMs reject. Below 34 the 2-arg startForeground uses the manifest
+            // declared type.
             ServiceCompat.startForeground(
                 this,
                 NOTIFICATION_ID,

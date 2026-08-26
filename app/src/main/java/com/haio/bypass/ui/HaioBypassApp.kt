@@ -3,7 +3,12 @@ package com.haio.bypass.ui
 import android.content.Intent
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Language
@@ -195,11 +200,31 @@ fun HaioBypassApp(
             topBar = {
                 CenterAlignedTopAppBar(
                     title = {
-                        Text(
-                            "HaioBypass",
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 20.sp
-                        )
+                        val appVersion = try {
+                            context.packageManager
+                                .getPackageInfo(context.packageName, 0).versionName
+                        } catch (_: Exception) {
+                            null
+                        }
+                        Row(
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "HaioBypass",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 20.sp
+                            )
+                            if (appVersion != null) {
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    "v$appVersion",
+                                    fontWeight = FontWeight.Normal,
+                                    fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
+                                )
+                            }
+                        }
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                         containerColor = MaterialTheme.colorScheme.background,
@@ -317,10 +342,17 @@ fun HaioBypassApp(
                         onRefreshSub = { scope.launch { fetchSubscription() } },
                         onToggleVpn = { shouldStart ->
                             if (shouldStart) {
-                                requestVpnPermission { granted ->
-                                    if (granted) {
-                                        val serviceIntent = Intent(context, HaioVpnService::class.java)
-                                        context.startForegroundService(serviceIntent)
+                                if (ConfigManager(context).getConfig().trojanConfig == null) {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("ابتدا تروجان را تنظیم کنید")
+                                    }
+                                    navController.navigate(Screen.Config.route)
+                                } else {
+                                    requestVpnPermission { granted ->
+                                        if (granted) {
+                                            val serviceIntent = Intent(context, HaioVpnService::class.java)
+                                            context.startForegroundService(serviceIntent)
+                                        }
                                     }
                                 }
                             } else {

@@ -59,12 +59,10 @@ func receiveFdViaSocket(socketName string) (int, error) {
 
 	buf := make([]byte, 1)
 	oob := make([]byte, unix.CmsgSpace(4))
-
-	n, oobn, _, _, err := unix.Recvmsg(sock, buf, oob, 0)
+	_, oobn, _, _, err := unix.Recvmsg(sock, buf, oob, 0)
 	if err != nil {
 		return -1, err
 	}
-	_ = n
 
 	msgs, err := unix.ParseSocketControlMessage(oob[:oobn])
 	if err != nil {

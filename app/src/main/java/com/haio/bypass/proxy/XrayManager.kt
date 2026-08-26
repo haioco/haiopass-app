@@ -4,9 +4,9 @@ import android.content.Context
 import android.net.LocalServerSocket
 import android.net.LocalSocket
 import android.net.VpnService
+import android.os.ParcelFileDescriptor
 import android.system.Os
 import android.system.OsConstants
-import android.system.StructCmsghdr
 import android.util.Log
 import kotlinx.coroutines.*
 import java.io.BufferedReader
@@ -209,14 +209,14 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
         }
 
         return try {
-            val SOCKET_NAME = "haio_tun_fd_socket"
-            val serverSocket = LocalServerSocket(SOCKET_NAME)
-            Log.i(TAG, "Created server socket: $SOCKET_NAME")
+            val socketName = "haio_tun_fd_socket"
+            val serverSocket = LocalServerSocket(socketName)
+            Log.i(TAG, "Created server socket: $socketName")
 
             val command = mutableListOf(
                 LINKER64_PATH,
                 wrapper.absolutePath,
-                SOCKET_NAME,
+                socketName,
                 tun2socks.absolutePath,
                 "--device", "fd://3",
                 "--proxy", "socks5://127.0.0.1:$socksPort",
@@ -251,19 +251,18 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
                 socket
             }
             if (clientSocket == null) {
-                Log.e(TAG, "tun2socks wrapper did not connect to server socket (timeout or process died)")
+                Log.e(TAG, "tun2socks wrapper did not connect to server socket")
                 try { serverSocket.close() } catch (_: Exception) {}
                 try { tun2SocksProcess?.destroy() } catch (_: Exception) {}
                 tun2SocksProcess = null
                 return false
             }
-            Log.i(TAG, "Wrapper connected to server socket")
 
             sendFdOverSocket(clientSocket, tunFd)
             clientSocket.close()
             serverSocket.close()
 
-            val deadline = System.currentTimeMillis() + 5_000
+            val deadline = System.currentTimeMillis() + 8_000
             while (System.currentTimeMillis() < deadline) {
                 if (!isTun2SocksRunning()) break
                 delay(100)
@@ -290,6 +289,19 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
         } catch (_: IllegalThreadStateException) {
             true
         }
+    }
+
+    private fun sendFdOverSocket(socket: LocalSocket, fd: Int) {
+        // LocalSocket implements SCM_RIGHTS on every supported Android API.
+        // ParcelFileDescriptor.fromFd duplicates the TUN fd so this method does
+        // not take ownership of the service's original descriptor.
+        ParcelFileDescriptor.fromFd(fd).use { duplicate ->
+            socket.setFileDescriptorsForSend(arrayOf(duplicate.fileDescriptor))
+            socket.outputStream.write(0)
+            socket.outputStream.flush()
+            socket.setFileDescriptorsForSend(null)
+        }
+        Log.d(TAG, "Sent TUN fd=$fd via Unix socket")
     }
 
     private fun extractWrapperBinary(): File? {
@@ -348,28 +360,6 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
         } catch (e: Exception) {
             Log.e(TAG, "Failed to extract tun2socks binary: $assetName", e)
             null
-        }
-    }
-
-    private fun sendFdOverSocket(socket: LocalSocket, fd: Int) {
-        try {
-            val os = socket.fileDescriptor
-
-            val fdBytes = ByteArray(4)
-            fdBytes[0] = (fd and 0xFF).toByte()
-            fdBytes[1] = ((fd shr 8) and 0xFF).toByte()
-            fdBytes[2] = ((fd shr 16) and 0xFF).toByte()
-            fdBytes[3] = ((fd shr 24) and 0xFF).toByte()
-
-            val iov = arrayOf(java.nio.ByteBuffer.wrap(byteArrayOf(0)))
-            val SCM_RIGHTS = 0x01
-            val cmsg = StructCmsghdr(OsConstants.SOL_SOCKET, SCM_RIGHTS, fdBytes)
-            val msg = android.system.StructMsghdr(null, iov, arrayOf(cmsg), 0)
-
-            Os.sendmsg(os, msg, 0)
-            Log.d(TAG, "Sent TUN fd=$fd via Unix socket")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to send fd via socket", e)
         }
     }
 
