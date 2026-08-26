@@ -1,5 +1,7 @@
 package com.haio.bypass.domain
 
+import android.content.Context
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -8,26 +10,41 @@ import java.util.concurrent.TimeUnit
 
 class DomainFetcher {
 
+    constructor()
+    constructor(@Suppress("UNUSED_PARAMETER") context: Context)
+
     private val client = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(10, TimeUnit.SECONDS)
         .build()
 
     suspend fun fetch(): List<String> = withContext(Dispatchers.IO) {
-        try {
-            val request = Request.Builder()
-                .url(DOMAIN_URL)
-                .header("Cache-Control", "no-cache")
-                .header("Pragma", "no-cache")
-                .build()
+        // Source of truth is the remote domains.txt. Everything else goes direct.
+        val merged = LinkedHashSet<String>()
 
-            val response = client.newCall(request).execute()
-            if (!response.isSuccessful) return@withContext emptyList()
+        for (url in REMOTE_URLS) {
+            try {
+                val request = Request.Builder()
+                    .url(url)
+                    .header("Cache-Control", "no-cache")
+                    .header("Pragma", "no-cache")
+                    .build()
 
-            val body = response.body?.string() ?: return@withContext emptyList()
-            parseDomainText(body)
-        } catch (_: Exception) {
-            emptyList()
+                val response = client.newCall(request).execute()
+                if (!response.isSuccessful) {
+                    response.close()
+                    continue
+                }
+
+                val body = response.body?.string() ?: continue
+                merged.addAll(parseDomainText(body))
+            } catch (_: Exception) {
+                continue
+            }
+        }
+
+        merged.toList().also {
+            Log.d(TAG, "fetch complete: ${it.size} domains from remote sources")
         }
     }
 
@@ -65,6 +82,10 @@ class DomainFetcher {
     }
 
     companion object {
-        const val DOMAIN_URL = "https://tools.haiocloud.com/domains.txt"
+        private const val TAG = "DomainFetcher"
+        private val REMOTE_URLS = listOf(
+            "https://tools.haiocloud.com/domains.txt",
+            "https://raw.githubusercontent.com/haiocloud/bypass-domains/main/domains.txt"
+        )
     }
 }

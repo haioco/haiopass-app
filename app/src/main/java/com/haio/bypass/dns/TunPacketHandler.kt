@@ -13,12 +13,11 @@ import java.nio.ByteBuffer
 
 class TunPacketHandler(
     private val vpnService: VpnService,
-    private val tunFdInt: Int
+    private val tunPfd: ParcelFileDescriptor
 ) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var tunnelPfdA: ParcelFileDescriptor? = null
     private var tunnelPfdB: ParcelFileDescriptor? = null
-    private var tunPfd: ParcelFileDescriptor? = null
     private var tunInput: FileInputStream? = null
     private var tunOutputFd: java.io.FileDescriptor? = null
     private var tunnelWriteErrorCount = 0
@@ -29,15 +28,14 @@ class TunPacketHandler(
         tunnelPfdA = pair[0]
         tunnelPfdB = pair[1]
 
-        tunPfd = ParcelFileDescriptor.fromFd(tunFdInt)
-        tunInput = FileInputStream(tunPfd!!.fileDescriptor)
-        tunOutputFd = tunPfd!!.fileDescriptor
+        tunInput = FileInputStream(tunPfd.fileDescriptor)
+        tunOutputFd = tunPfd.fileDescriptor
 
         scope.launch { runReadFromTun() }
         scope.launch { runReadFromTunnel() }
 
         val tunnelFdInt = tunnelPfdB!!.detachFd()
-        Log.i(TAG, "TunPacketHandler started, tunnel fd=$tunnelFdInt, tun fd=$tunFdInt")
+        Log.i(TAG, "TunPacketHandler started, tunnel fd=$tunnelFdInt")
         return tunnelFdInt
     }
 
@@ -48,8 +46,7 @@ class TunPacketHandler(
         tunnelPfdB = null
         try { tunInput?.close() } catch (_: Exception) {}
         tunInput = null
-        try { tunPfd?.close() } catch (_: Exception) {}
-        tunPfd = null
+        try { tunPfd.close() } catch (_: Exception) {}
         tunOutputFd = null
     }
 

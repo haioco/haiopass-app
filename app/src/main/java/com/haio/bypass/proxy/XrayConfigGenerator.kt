@@ -18,6 +18,7 @@ class XrayConfigGenerator {
         bypassDomains: List<String>
     ): String {
         val domainRules = bypassDomains.map { "domain:$it" }
+        val fakeIpPool = "198.18.0.0/15"
 
         val config = buildJsonObject {
             put("log", buildJsonObject {
@@ -36,10 +37,14 @@ class XrayConfigGenerator {
                     })
                     put("sniffing", buildJsonObject {
                         put("enabled", JsonPrimitive(true))
+                        // "fakedns" makes xray revert a fake-ip destination back to the
+                        // real domain, so the trojan outbound gets the domain even when the
+                        // app connected to the synthesized fake IP (no SNI needed).
                         put("destOverride", buildJsonArray {
                             add(JsonPrimitive("http"))
                             add(JsonPrimitive("tls"))
                             add(JsonPrimitive("quic"))
+                            add(JsonPrimitive("fakedns"))
                         })
                         put("metadataOnly", JsonPrimitive(false))
                     })
@@ -83,10 +88,34 @@ class XrayConfigGenerator {
                     put("tag", JsonPrimitive("block"))
                     put("protocol", JsonPrimitive("blackhole"))
                 })
+                // DNS outbound: lets routing send DNS queries into the dns module so
+                // FakeDNS can synthesize IPs for listed domains.
+                add(buildJsonObject {
+                    put("tag", JsonPrimitive("dns-out"))
+                    put("protocol", JsonPrimitive("dns"))
+                })
             })
 
+            put("fakedns", buildJsonObject {
+                put("ipPool", JsonPrimitive(fakeIpPool))
+                put("poolSize", JsonPrimitive(65535))
+            })
+
+            // DNS: FakeDNS for listed domains only (whitelist); everything else falls
+            // back to the real recursive resolver so non-bypass domains resolve to real
+            // IPs and stay "direct".
             put("dns", buildJsonObject {
+                put("queryStrategy", JsonPrimitive("UseIPv4"))
                 put("servers", buildJsonArray {
+                    if (domainRules.isNotEmpty()) {
+                        add(buildJsonObject {
+                            put("address", JsonPrimitive("fakedns"))
+                            put("domains", buildJsonArray {
+                                domainRules.forEach { rule -> add(JsonPrimitive(rule)) }
+                            })
+                            put("queryStrategy", JsonPrimitive("UseIPv4"))
+                        })
+                    }
                     add(buildJsonObject {
                         put("address", JsonPrimitive("8.8.8.8"))
                         put("queryStrategy", JsonPrimitive("UseIPv4"))
@@ -97,6 +126,28 @@ class XrayConfigGenerator {
             put("routing", buildJsonObject {
                 put("domainStrategy", JsonPrimitive("IPIfNonMatch"))
                 put("rules", buildJsonArray {
+                    // 1) Hijack app plain-DNS queries into the dns module (FakeDNS).
+                    add(buildJsonObject {
+                        put("type", JsonPrimitive("field"))
+                        put("port", JsonPrimitive(53))
+                        put("network", JsonPrimitive("udp,tcp"))
+                        put("outboundTag", JsonPrimitive("dns-out"))
+                    })
+                    // 2) Drop QUIC (UDP/443) so apps fall back to TCP/TLS, which
+                    // works reliably through the trojan-TCP outbound.
+                    add(buildJsonObject {
+                        put("type", JsonPrimitive("field"))
+                        put("port", JsonPrimitive(443))
+                        put("network", JsonPrimitive("udp"))
+                        put("outboundTag", JsonPrimitive("block"))
+                    })
+                    // 3) Any connection to a FakeIP destination goes through the proxy.
+                    add(buildJsonObject {
+                        put("type", JsonPrimitive("field"))
+                        put("ip", buildJsonArray { add(JsonPrimitive(fakeIpPool)) })
+                        put("outboundTag", JsonPrimitive("proxy"))
+                    })
+                    // 4) Explicit domain rules -> proxy (covers SNI-visible traffic too).
                     if (domainRules.isNotEmpty()) {
                         add(buildJsonObject {
                             put("type", JsonPrimitive("field"))
@@ -106,6 +157,7 @@ class XrayConfigGenerator {
                             put("outboundTag", JsonPrimitive("proxy"))
                         })
                     }
+                    // 5) Everything else (non-bypass) goes direct.
                     add(buildJsonObject {
                         put("type", JsonPrimitive("field"))
                         put("network", JsonPrimitive("tcp,udp"))

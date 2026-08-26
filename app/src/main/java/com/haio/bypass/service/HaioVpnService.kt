@@ -1,9 +1,12 @@
 package com.haio.bypass.service
 
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.net.VpnService
+import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.util.Log
+import androidx.core.app.ServiceCompat
 import com.haio.bypass.config.ConfigManager
 import com.haio.bypass.domain.DomainStore
 import com.haio.bypass.proxy.ProxyManager
@@ -15,6 +18,7 @@ class HaioVpnService : VpnService() {
     private var vpnInterface: ParcelFileDescriptor? = null
     private var vpnFd: Int = -1
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var startJob: Job? = null
     private var isStopping = false
     private var isRunning = false
 
@@ -22,6 +26,7 @@ class HaioVpnService : VpnService() {
         if (intent?.action == ACTION_STOP) {
             Log.i(TAG, "Stop action received")
             stopVpn()
+            stopForegroundCompat()
             stopSelf()
             return START_NOT_STICKY
         }
@@ -37,15 +42,18 @@ class HaioVpnService : VpnService() {
         val trojanConfig = configManager.getConfig().trojanConfig
         if (trojanConfig == null) {
             Log.e(TAG, "No Trojan config, stopping")
+            ProxyManager.resetState()
             stopSelf()
             return START_NOT_STICKY
         }
 
-        startForeground(NOTIFICATION_ID, VpnNotification.create(this))
+        startForegroundCompat()
 
         vpnInterface = establishVpnInterface()
         if (vpnInterface == null) {
             Log.e(TAG, "Failed to establish VPN interface, stopping")
+            ProxyManager.resetState()
+            stopForegroundCompat()
             stopSelf()
             return START_NOT_STICKY
         }
@@ -61,21 +69,45 @@ class HaioVpnService : VpnService() {
         isRunning = true
 
         proxyManager = ProxyManager(applicationContext, configManager, domainStore, this)
-        scope.launch {
+        startJob = scope.launch {
             try {
                 proxyManager?.start(vpnFd, trojanConfig)
             } catch (e: ProxyManager.ProxyStartException) {
                 Log.e(TAG, "Proxy failed to start: ${e.message}")
                 stopVpn()
+                stopForegroundCompat()
                 stopSelf()
             } catch (e: Exception) {
                 Log.e(TAG, "Unexpected error starting proxy", e)
                 stopVpn()
+                stopForegroundCompat()
                 stopSelf()
             }
         }
 
         return START_STICKY
+    }
+
+    private fun startForegroundCompat() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ServiceCompat.startForeground(
+                this,
+                NOTIFICATION_ID,
+                VpnNotification.create(this),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, VpnNotification.create(this))
+        }
+    }
+
+    private fun stopForegroundCompat() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } else {
+            @Suppress("DEPRECATION")
+            stopForeground(true)
+        }
     }
 
     private fun establishVpnInterface(): ParcelFileDescriptor? {
@@ -84,9 +116,7 @@ class HaioVpnService : VpnService() {
                 .setSession("HaioBypass")
                 .setMtu(1500)
                 .addAddress("172.19.0.1", 30)
-                .addAddress("fd00::1", 126)
                 .addRoute("0.0.0.0", 0)
-                .addRoute("::", 0)
                 .addDnsServer("8.8.8.8")
                 .addDisallowedApplication(packageName)
                 .establish()
@@ -100,32 +130,44 @@ class HaioVpnService : VpnService() {
         if (isStopping) return
         isStopping = true
         isRunning = false
+
+        // Cancel an in-flight start coroutine before tearing things down so we
+        // don't race with detachFd()/establish() of the TUN interface.
+        startJob?.cancel()
+        startJob = null
+
         try {
             proxyManager?.cleanup()
         } catch (e: Exception) {
             Log.e(TAG, "Error cleaning up proxy manager", e)
         }
         proxyManager = null
+
+        // Explicitly close the raw VPN fd to tear down the TUN interface.
+        // This is required because detachFd() transferred ownership to the native process.
+        // Closing the fd here ensures the VPN is revoked even if the process stays alive.
         try {
             if (vpnFd >= 0) {
                 ParcelFileDescriptor.adoptFd(vpnFd).close()
                 vpnFd = -1
             }
-        } catch (_: Exception) {}
-        try {
-            vpnInterface?.close()
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
+
         vpnInterface = null
+        ProxyManager.resetState()
     }
 
     override fun onDestroy() {
         stopVpn()
+        stopForegroundCompat()
         scope.cancel()
         super.onDestroy()
     }
 
     override fun onRevoke() {
         stopVpn()
+        stopForegroundCompat()
         scope.cancel()
         super.onRevoke()
     }

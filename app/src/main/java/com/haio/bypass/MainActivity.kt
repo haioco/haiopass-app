@@ -1,23 +1,27 @@
 package com.haio.bypass
 
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.VpnService
+import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
-import com.haio.bypass.billing.BazaarPayHelper
+import androidx.core.content.ContextCompat
+// import com.haio.bypass.billing.BazaarPayHelper
 import com.haio.bypass.domain.DomainFetcher
 import com.haio.bypass.domain.DomainStore
-import com.haio.bypass.network.api.ApiClient
-import com.haio.bypass.network.api.Plan
-import com.haio.bypass.network.api.VerifyPaymentRequest
+// import com.haio.bypass.network.api.ApiClient
+// import com.haio.bypass.network.api.Plan
+// import com.haio.bypass.network.api.VerifyPaymentRequest
 import com.haio.bypass.ui.HaioBypassApp
 import com.haio.bypass.ui.screens.SplashScreen
 import com.haio.bypass.ui.theme.HaioBypassTheme
 import com.haio.bypass.config.ConfigManager
-import com.haio.bypass.config.TrojanUrlParser
+// import com.haio.bypass.config.TrojanUrlParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,7 +34,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var prefs: HaioPrefs
     private val snackbarMsg = MutableStateFlow<String?>(null)
     private val purchaseRefreshTrigger = MutableStateFlow(0)
-    private var bazaarHelper: BazaarPayHelper? = null
+    // private var bazaarHelper: BazaarPayHelper? = null
 
     private val vpnPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -40,14 +44,29 @@ class MainActivity : ComponentActivity() {
         vpnPermissionResult = null
     }
 
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        Log.i(TAG, "POST_NOTIFICATIONS permission granted=$granted")
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = HaioPrefs(applicationContext)
 
-        val activationManager = ActivationManager(prefs)
-        val domainStore = DomainStore(applicationContext)
-        val domainFetcher = DomainFetcher()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
 
+        // ── Backend auto-activation DISABLED ──
+        // Users must paste their own config in ConfigScreen.
+        // Config is cached in ConfigManager (SharedPreferences) and used for VPN connect.
+        /*
+        val activationManager = ActivationManager(prefs)
         val cfgMgr = ConfigManager(applicationContext)
         bazaarHelper = BazaarPayHelper(
             context = applicationContext,
@@ -65,6 +84,10 @@ class MainActivity : ComponentActivity() {
             }
         )
         bazaarHelper?.connect()
+        */
+
+        val domainStore = DomainStore(applicationContext)
+        val domainFetcher = DomainFetcher(applicationContext)
 
         setContent {
             HaioBypassTheme {
@@ -77,6 +100,9 @@ class MainActivity : ComponentActivity() {
                 if (showSplash) {
                     SplashScreen(
                         onSplashFinished = {
+                            // ── Backend auto-activation DISABLED ──
+                            // No API call. Config is loaded from cache in ConfigScreen.
+                            /*
                             splashScope.launch {
                                 val result = activationManager.run()
                                 when (result) {
@@ -95,6 +121,7 @@ class MainActivity : ComponentActivity() {
                                     is ActivationManager.ActivationResult.Error -> {}
                                 }
                             }
+                            */
                             splashScope.launch {
                                 val domains = domainFetcher.fetch()
                                 if (domains.isNotEmpty()) {
@@ -122,7 +149,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        bazaarHelper?.disconnect()
+        // bazaarHelper?.disconnect()
         super.onDestroy()
     }
 
@@ -134,5 +161,9 @@ class MainActivity : ComponentActivity() {
             vpnPermissionResult = callback
             vpnPermissionLauncher.launch(intent)
         }
+    }
+
+    companion object {
+        private const val TAG = "MainActivity"
     }
 }

@@ -30,6 +30,7 @@ import com.haio.bypass.config.ConfigManager
 import com.haio.bypass.config.SubscriptionInfo
 import com.haio.bypass.network.api.ApiClient
 import com.haio.bypass.network.api.DeviceStatusRequest
+import com.haio.bypass.network.api.toSubscriptionInfo
 import com.haio.bypass.domain.DomainStore
 import com.haio.bypass.proxy.ProxyManager
 import com.haio.bypass.service.HaioVpnService
@@ -329,7 +330,7 @@ fun HaioBypassApp(
                         },
                         onRefreshDomains = {
                             scope.launch {
-                                val fetcher = com.haio.bypass.domain.DomainFetcher()
+                                val fetcher = com.haio.bypass.domain.DomainFetcher(context)
                                 val domains = fetcher.fetch()
                                 if (domains.isNotEmpty()) {
                                     domainStore.setDomains(domains)
@@ -357,7 +358,7 @@ fun HaioBypassApp(
                         domainStore = domainStore,
                         onRefresh = {
                             scope.launch {
-                                val fetcher = com.haio.bypass.domain.DomainFetcher()
+                                val fetcher = com.haio.bypass.domain.DomainFetcher(context)
                                 val domains = fetcher.fetch()
                                 domainStore.setDomains(domains)
                             }

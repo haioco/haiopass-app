@@ -11,8 +11,8 @@ import android.util.Log
 import kotlinx.coroutines.*
 import java.io.BufferedReader
 import java.io.File
-import java.io.FileDescriptor
 import java.io.InputStreamReader
+import java.util.concurrent.TimeUnit
 import java.nio.ByteBuffer
 
 class XrayManager(private val context: Context, private val vpnService: VpnService) {
@@ -22,6 +22,8 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
     private var watchdogJob: Job? = null
     private var protectionJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var xrayPid: Int? = null
+    private var tun2SocksPid: Int? = null
     private var intentionalStop = false
 
     private val workDir: File by lazy {
@@ -29,7 +31,7 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
     }
     private val configFile: File by lazy { File(workDir, "config.json") }
 
-    fun start(configJson: String): Boolean {
+    suspend fun start(configJson: String): Boolean {
         stop()
 
         intentionalStop = false
@@ -68,7 +70,11 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
                 } catch (_: Exception) {}
             }
 
-            Thread.sleep(3000)
+            val deadline = System.currentTimeMillis() + 5_000
+            while (System.currentTimeMillis() < deadline) {
+                if (!isXrayRunning()) break
+                delay(200)
+            }
 
             if (!isXrayRunning()) {
                 val exitCode = try { xrayProcess?.exitValue() } catch (_: Exception) { -1 }
@@ -93,15 +99,37 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
         watchdogJob = null
         protectionJob?.cancel()
         protectionJob = null
-        try {
-            xrayProcess?.destroy()
-        } catch (_: Exception) {}
+
+        killProcess(xrayProcess)
         xrayProcess = null
-        try {
-            tun2SocksProcess?.destroy()
-        } catch (_: Exception) {}
+        killProcess(tun2SocksProcess)
         tun2SocksProcess = null
+
+        xrayPid = null
+        tun2SocksPid = null
         Log.i(TAG, "xray and tun2socks stopped")
+    }
+
+    private fun killProcess(process: Process?) {
+        if (process == null) return
+        try {
+            process.destroy()
+        } catch (_: Exception) {
+        }
+        try {
+            if (!process.waitFor(2_000, TimeUnit.MILLISECONDS)) {
+                Log.w(TAG, "process didn't exit on SIGTERM, sending SIGKILL")
+                process.destroyForcibly()
+                process.waitFor(2_000, TimeUnit.MILLISECONDS)
+            }
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            try { process.destroyForcibly() } catch (_: Exception) {
+            }
+        } catch (_: Exception) {
+            try { process.destroyForcibly() } catch (_: Exception) {
+            }
+        }
     }
 
     fun isRunning(): Boolean {
@@ -167,7 +195,7 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
         }
     }
 
-    fun startTun2Socks(tunFd: Int, socksPort: Int): Boolean {
+    suspend fun startTun2Socks(tunFd: Int, socksPort: Int): Boolean {
         preProtectXraySockets()
 
         val wrapper = extractWrapperBinary() ?: run {
@@ -211,14 +239,35 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
                 } catch (_: Exception) {}
             }
 
-            val clientSocket = serverSocket.accept()
+            val clientSocket = withTimeoutOrNull(8_000) {
+                var socket: LocalSocket? = null
+                while (socket == null && isTun2SocksRunning()) {
+                    try {
+                        socket = serverSocket.accept()
+                    } catch (_: Exception) {
+                        delay(50)
+                    }
+                }
+                socket
+            }
+            if (clientSocket == null) {
+                Log.e(TAG, "tun2socks wrapper did not connect to server socket (timeout or process died)")
+                try { serverSocket.close() } catch (_: Exception) {}
+                try { tun2SocksProcess?.destroy() } catch (_: Exception) {}
+                tun2SocksProcess = null
+                return false
+            }
             Log.i(TAG, "Wrapper connected to server socket")
 
             sendFdOverSocket(clientSocket, tunFd)
             clientSocket.close()
             serverSocket.close()
 
-            Thread.sleep(500)
+            val deadline = System.currentTimeMillis() + 5_000
+            while (System.currentTimeMillis() < deadline) {
+                if (!isTun2SocksRunning()) break
+                delay(100)
+            }
             if (!isTun2SocksRunning()) {
                 val exitCode = try { tun2SocksProcess?.exitValue() } catch (_: Exception) { -1 }
                 Log.e(TAG, "tun2socks exited with code $exitCode")
@@ -226,6 +275,7 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
                 return false
             }
             Log.i(TAG, "tun2socks started successfully")
+            protectTun2SocksSockets(tun2SocksProcess!!)
             true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start tun2socks", e)
@@ -280,7 +330,6 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
             context.assets.openFd(assetName).use { it.length }
         } catch (_: Exception) { 0L }
         if (targetFile.exists() && targetFile.length() == expectedSize) {
-            patchElfHeader(targetFile)
             return targetFile
         }
 
@@ -294,94 +343,11 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
 
             targetFile.setExecutable(true, false)
             targetFile.setReadable(true, false)
-            patchElfHeader(targetFile)
             Log.d(TAG, "tun2socks permissions set: exe=${targetFile.canExecute()}")
             targetFile
         } catch (e: Exception) {
             Log.e(TAG, "Failed to extract tun2socks binary: $assetName", e)
             null
-        }
-    }
-
-    private fun patchElfHeader(file: File) {
-        try {
-            val raf = java.io.RandomAccessFile(file, "rw")
-            raf.seek(16)
-            val b0 = raf.read().toInt() and 0xFF
-            val b1 = raf.read().toInt() and 0xFF
-            if (b0 == -1 || b1 == -1) {
-                raf.close()
-                Log.w(TAG, "tun2socks too small to read e_type")
-                return
-            }
-            val etype = b0 or (b1 shl 8)
-            Log.d(TAG, "tun2socks ELF e_type before patch: 0x${String.format("%04X", etype)}")
-            if (etype == 2) {
-                raf.seek(16)
-                raf.write(3)
-                raf.write(0)
-                Log.i(TAG, "Patched tun2socks ELF header: ET_EXEC -> ET_DYN")
-            }
-            raf.close()
-            patchTlsAlignment(file)
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to patch ELF header", e)
-        }
-    }
-
-    private fun patchTlsAlignment(file: File) {
-        try {
-            val raf = java.io.RandomAccessFile(file, "rw")
-            val header = ByteArray(64)
-            raf.readFully(header)
-            val e_phoff = readLong(header, 32)
-            val e_phentsize = readShort(header, 54).toInt()
-            val e_phnum = readShort(header, 56).toInt()
-            val PT_TLS = 7
-            val MIN_TLS_ALIGN = 64L
-            for (i in 0 until e_phnum) {
-                val off = e_phoff + i.toLong() * e_phentsize
-                raf.seek(off)
-                val ph = ByteArray(e_phentsize)
-                raf.readFully(ph)
-                if (readInt(ph, 0) != PT_TLS) continue
-                val p_align = readLong(ph, 48)
-                if (p_align < MIN_TLS_ALIGN) {
-                    raf.seek(off + 48)
-                    writeLong(raf, MIN_TLS_ALIGN)
-                    Log.i(TAG, "Patched tun2socks PT_TLS p_align: $p_align -> $MIN_TLS_ALIGN")
-                }
-                break
-            }
-            raf.close()
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to patch TLS alignment", e)
-        }
-    }
-
-    private fun readInt(b: ByteArray, off: Int): Int {
-        return (b[off].toInt() and 0xFF) or
-            ((b[off + 1].toInt() and 0xFF) shl 8) or
-            ((b[off + 2].toInt() and 0xFF) shl 16) or
-            ((b[off + 3].toInt() and 0xFF) shl 24)
-    }
-
-    private fun readShort(b: ByteArray, off: Int): Int {
-        return (b[off].toInt() and 0xFF) or
-            ((b[off + 1].toInt() and 0xFF) shl 8)
-    }
-
-    private fun readLong(b: ByteArray, off: Int): Long {
-        var v = 0L
-        for (i in 0 until 8) {
-            v = v or ((b[off + i].toLong() and 0xFF) shl (i * 8))
-        }
-        return v
-    }
-
-    private fun writeLong(raf: java.io.RandomAccessFile, v: Long) {
-        for (i in 0 until 8) {
-            raf.write((v shr (i * 8)).toInt() and 0xFF)
         }
     }
 
@@ -410,22 +376,34 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
     private fun protectProcessSockets(process: Process) {
         protectionJob?.cancel()
         try {
-            val pidField = process.javaClass.getDeclaredField("pid")
-            pidField.isAccessible = true
-            val pid = pidField.getInt(process)
+            val pid = ProcessUtils.getPid(process)
+            xrayPid = pid
             Log.i(TAG, "xray pid=$pid, starting socket protection")
-            startProtectionLoop(pid)
+            startProtectionLoop()
         } catch (e: Exception) {
             Log.e(TAG, "Failed to get xray PID", e)
         }
     }
 
-    private fun startProtectionLoop(pid: Int) {
+    private fun protectTun2SocksSockets(process: Process) {
+        try {
+            val pid = ProcessUtils.getPid(process)
+            tun2SocksPid = pid
+            Log.i(TAG, "tun2socks pid=$pid, adding to socket protection")
+            startProtectionLoop()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get tun2socks PID", e)
+        }
+    }
+
+    private fun startProtectionLoop() {
+        protectionJob?.cancel()
         protectionJob = scope.launch {
             var fastCycles = 600
             while (isActive) {
                 try {
-                    protectAllProcessSockets(pid)
+                    xrayPid?.let { protectAllProcessSockets(it) }
+                    tun2SocksPid?.let { protectAllProcessSockets(it) }
                 } catch (e: Exception) {
                     Log.w(TAG, "Protection loop error", e)
                 }
@@ -464,10 +442,9 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
     }
 
     private fun getXrayPid(): Int? {
+        val process = xrayProcess ?: return null
         return try {
-            val pidField = xrayProcess?.javaClass?.getDeclaredField("pid")
-            pidField?.isAccessible = true
-            pidField?.getInt(xrayProcess)
+            ProcessUtils.getPid(process)
         } catch (e: Exception) {
             Log.w(TAG, "Failed to get Xray PID", e)
             null
@@ -487,13 +464,10 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
             try {
                 val target = Os.readlink(fdPath)
                 if (target != null && target.startsWith("socket:[")) {
-                    val fd = Os.open(fdPath, OsConstants.O_RDONLY, 0)
-                    val intFd = FileDescriptor::class.java
-                        .getDeclaredField("fd")
-                        .also { it.isAccessible = true }
-                        .getInt(fd)
+                    val dupFd = Os.open(fdPath, OsConstants.O_RDONLY, 0)
+                    val intFd = ProcessUtils.getFdInt(dupFd)
                     val result = vpnService.protect(intFd)
-                    Os.close(fd)
+                    Os.close(dupFd)
                     count++
                     if (count <= 2) {
                         Log.d(TAG, "Protected socket fd=$intFd (from $fdPath) result=$result")
@@ -518,13 +492,10 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
             try {
                 val target = Os.readlink(fdPath)
                 if (target != null && target.startsWith("socket:[")) {
-                    val fd = Os.open(fdPath, OsConstants.O_RDONLY, 0)
-                    val intFd = FileDescriptor::class.java
-                        .getDeclaredField("fd")
-                        .also { it.isAccessible = true }
-                        .getInt(fd)
+                    val dupFd = Os.open(fdPath, OsConstants.O_RDONLY, 0)
+                    val intFd = ProcessUtils.getFdInt(dupFd)
                     vpnService.protect(intFd)
-                    Os.close(fd)
+                    Os.close(dupFd)
                 }
             } catch (_: Exception) {}
         }

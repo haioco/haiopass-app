@@ -36,6 +36,50 @@ if [ ! -f "$ANDROID_HOME/build-tools/34.0.0/aapt2" ] && [ ! -f "$ANDROID_HOME/bu
     exit 1
 fi
 
+# Pre-patch tun2socks ELF header at build time (ET_EXEC -> ET_DYN, TLS alignment)
+# This avoids runtime patching on the device which triggers Android 14+ W^X enforcement.
+ASSETS_DIR="app/src/main/assets"
+TUN2SOCKS_SRC="$ASSETS_DIR/tun2socks_arm64_v8a"
+if [ -f "$TUN2SOCKS_SRC" ]; then
+    echo "Pre-patching tun2socks ELF header..."
+    python3 - "$TUN2SOCKS_SRC" <<'PYEOF'
+import sys, struct
+
+path = sys.argv[1]
+with open(path, "rb") as f:
+    data = bytearray(f.read())
+
+# ELF header: e_type at offset 16 (2 bytes, little-endian)
+e_type = struct.unpack_from("<H", data, 16)[0]
+print(f"  e_type before: 0x{e_type:04X} (ET_EXEC=2, ET_DYN=3)")
+if e_type == 2:
+    struct.pack_into("<H", data, 16, 3)
+    print("  -> Patched to ET_DYN (3)")
+
+# Walk program headers to find PT_TLS and patch p_align
+e_phoff = struct.unpack_from("<Q", data, 32)[0]
+e_phentsize = struct.unpack_from("<H", data, 54)[0]
+e_phnum = struct.unpack_from("<H", data, 56)[0]
+PT_TLS = 7
+MIN_TLS_ALIGN = 64
+for i in range(e_phnum):
+    off = e_phoff + i * e_phentsize
+    p_type = struct.unpack_from("<I", data, off)[0]
+    if p_type == PT_TLS:
+        p_align = struct.unpack_from("<Q", data, off + 48)[0]
+        if p_align < MIN_TLS_ALIGN:
+            struct.pack_into("<Q", data, off + 48, MIN_TLS_ALIGN)
+            print(f"  -> Patched PT_TLS p_align: {p_align} -> {MIN_TLS_ALIGN}")
+        break
+
+with open(path, "wb") as f:
+    f.write(data)
+print("  ELF patching complete.")
+PYEOF
+else
+    echo "WARNING: tun2socks_arm64_v8a not found in assets, skipping ELF pre-patch"
+fi
+
 # Build
 if [ "$BUILD_TYPE" = "release" ]; then
     echo "Building release APK..."
