@@ -8,7 +8,14 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-const linker64Path = "/apex/com.android.runtime/bin/linker64"
+func getLinker64Path() string {
+	apex := "/apex/com.android.runtime/bin/linker64"
+	system := "/system/bin/linker64"
+	if _, err := os.Stat(apex); err == nil {
+		return apex
+	}
+	return system
+}
 
 func main() {
 	if len(os.Args) < 4 {
@@ -38,9 +45,10 @@ func main() {
 		unix.Close(fd)
 	}
 
-	log.Printf("tun_wrapper: executing tun2socks via linker64")
-	linkerArgs := append([]string{linker64Path, tun2socksPath}, tun2socksArgs[1:]...)
-	if err := syscall.Exec(linker64Path, linkerArgs, os.Environ()); err != nil {
+	linkerPath := getLinker64Path()
+	log.Printf("tun_wrapper: executing tun2socks via %s", linkerPath)
+	linkerArgs := append([]string{linkerPath, tun2socksPath}, tun2socksArgs[1:]...)
+	if err := syscall.Exec(linkerPath, linkerArgs, os.Environ()); err != nil {
 		log.Fatalf("exec failed: %v", err)
 	}
 }

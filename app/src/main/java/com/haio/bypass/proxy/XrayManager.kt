@@ -44,8 +44,9 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
         }
 
         return try {
+            val linkerPath = getLinker64Path()
             val command = mutableListOf(
-                LINKER64_PATH,
+                linkerPath,
                 binary.absolutePath,
                 "run",
                 "-c",
@@ -213,8 +214,9 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
             val serverSocket = LocalServerSocket(socketName)
             Log.i(TAG, "Created server socket: $socketName")
 
+            val linkerPath = getLinker64Path()
             val command = mutableListOf(
-                LINKER64_PATH,
+                linkerPath,
                 wrapper.absolutePath,
                 socketName,
                 tun2socks.absolutePath,
@@ -491,9 +493,14 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
         }
     }
 
+    private fun getLinker64Path(): String {
+        val apex = "/apex/com.android.runtime/bin/linker64"
+        val system = "/system/bin/linker64"
+        return if (File(apex).exists()) apex else system
+    }
+
     companion object {
         private const val TAG = "XrayManager"
-        private const val LINKER64_PATH = "/apex/com.android.runtime/bin/linker64"
         private val WATCHDOG_INTERVAL = 10_000L
     }
 }
