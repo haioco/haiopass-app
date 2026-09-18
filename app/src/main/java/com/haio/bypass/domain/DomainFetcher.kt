@@ -69,15 +69,13 @@ class DomainFetcher {
         return result
     }
 
+    private val dnsPrefixes = setOf("ns1.", "ns2.", "ns3.", "ns4.", "ns5.")
+    private val dnsSuffixes = setOf("-hostmaster.", "dns-admin.", "hostmaster.", "dns1.")
+
     private fun isDnsInfrastructure(domain: String): Boolean {
-        val prefixes = listOf("ns1.", "ns2.", "ns3.", "ns4.", "ns5.")
-        if (prefixes.any { domain.startsWith(it) }) return true
-
-        val suffixes = listOf("-hostmaster.", "dns-admin.", "hostmaster.", "dns1.")
-        if (suffixes.any { domain.contains(it) }) return true
-
+        if (dnsPrefixes.any { domain.startsWith(it) }) return true
+        if (dnsSuffixes.any { domain.contains(it) }) return true
         if (domain.endsWith("nsone.net")) return true
-
         return false
     }
 

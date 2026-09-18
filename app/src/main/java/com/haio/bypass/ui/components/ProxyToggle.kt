@@ -63,26 +63,42 @@ fun ProxyToggle(
             label = "scale"
         )
 
-        val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-        val pulse by infiniteTransition.animateFloat(
-            initialValue = 0.92f,
-            targetValue = 1.05f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(1000, easing = EaseInOutCubic),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "pulse"
-        )
+        val pulseState = if (isConnecting) {
+            val trans = rememberInfiniteTransition(label = "pulse")
+            trans.animateFloat(
+                initialValue = 0.92f,
+                targetValue = 1.05f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1000, easing = EaseInOutCubic),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "pulse"
+            )
+        } else {
+            animateFloatAsState(
+                targetValue = 1f,
+                label = "pulse"
+            )
+        }
+        val pulse = pulseState.value
 
-        val glowAlpha by infiniteTransition.animateFloat(
-            initialValue = 0.12f,
-            targetValue = 0.25f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(1200, easing = EaseInOutCubic),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "glow"
-        )
+        val glowAlpha by if (isConnecting) {
+            val trans = rememberInfiniteTransition(label = "glow")
+            trans.animateFloat(
+                initialValue = 0.12f,
+                targetValue = 0.25f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1200, easing = EaseInOutCubic),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "glow"
+            )
+        } else {
+            animateFloatAsState(
+                targetValue = 0.12f,
+                label = "glow"
+            )
+        }
 
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,

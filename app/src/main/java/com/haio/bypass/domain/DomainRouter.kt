@@ -28,15 +28,11 @@ class DomainRouter {
         if (domains.contains(lowerHost)) return true
 
         val suffix = extractTwoPartSuffix(lowerHost)
-        suffixIndex[suffix]?.forEach { baseDomain ->
-            if (lowerHost == baseDomain || lowerHost.endsWith(".$baseDomain")) {
-                return true
-            }
-        }
-
-        for (domain in domains) {
-            if (lowerHost == domain || lowerHost.endsWith(".$domain")) {
-                return true
+        suffixIndex[suffix]?.let { baseDomains ->
+            for (baseDomain in baseDomains) {
+                if (lowerHost == baseDomain || lowerHost.endsWith(".$baseDomain")) {
+                    return true
+                }
             }
         }
 

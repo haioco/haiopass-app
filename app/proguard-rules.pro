@@ -1,9 +1,5 @@
+-keepattributes Signature, Exceptions, InnerClasses, EnclosingMethod
 -keepattributes *Annotation*
--keepattributes SourceFile,LineNumberTable
--keepattributes Signature
--keepattributes InnerClasses
--keepattributes EnclosingMethod
--keepattributes RuntimeVisibleAnnotations
 -keep public class * extends java.lang.Exception
 
 # Retrofit

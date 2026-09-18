@@ -391,7 +391,7 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
     private fun startProtectionLoop() {
         protectionJob?.cancel()
         protectionJob = scope.launch {
-            var fastCycles = 600
+            var fastCycles = 60
             while (isActive) {
                 try {
                     xrayPid?.let { protectAllProcessSockets(it) }
@@ -401,9 +401,9 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
                 }
                 if (fastCycles > 0) {
                     fastCycles--
-                    delay(50)
-                } else {
                     delay(200)
+                } else {
+                    delay(1000)
                 }
             }
         }

@@ -38,14 +38,14 @@ fun SplashScreen(onSplashFinished: () -> Unit) {
                 )
             )
         }
-        kotlinx.coroutines.delay(200)
+        kotlinx.coroutines.delay(300)
         launch {
             taglineAlpha.animateTo(
                 targetValue = 1f,
                 animationSpec = tween(durationMillis = 350, easing = EaseOutCubic)
             )
         }
-        kotlinx.coroutines.delay(1000)
+        kotlinx.coroutines.delay(600)
         alpha.animateTo(
             targetValue = 0f,
             animationSpec = tween(durationMillis = 300, easing = EaseInCubic)
