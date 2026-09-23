@@ -1,5 +1,7 @@
 -keepattributes Signature, Exceptions, InnerClasses, EnclosingMethod
 -keepattributes *Annotation*
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
 -keep public class * extends java.lang.Exception
 
 # Retrofit
@@ -19,7 +21,7 @@
 -keep class kotlin.Metadata { *; }
 -keep class kotlin.reflect.full.** { *; }
 -keep class kotlin.reflect.jvm.** { *; }
--keep class kotlin.coroutines.Continuation; }
+-keep class kotlin.coroutines.Continuation
 -dontwarn javax.annotation.**
 -dontwarn kotlin.Unit
 -dontwarn retrofit2.KotlinExtensions
