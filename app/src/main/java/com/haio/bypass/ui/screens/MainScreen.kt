@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -41,6 +42,7 @@ fun MainScreen(
     isVpnRunning: Boolean,
     statusMessage: String,
     domainCount: Int,
+    excludedCount: Int = 0,
     subscriptionInfo: SubscriptionInfo? = null,
     isRefreshingSub: Boolean = false,
     subFetchError: String? = null,
@@ -48,7 +50,8 @@ fun MainScreen(
     onRefreshSub: () -> Unit = {},
     onToggleVpn: (Boolean) -> Unit,
     onRefreshDomains: () -> Unit,
-    onConfigureClick: () -> Unit = {}
+    onConfigureClick: () -> Unit = {},
+    onManageDomainsClick: () -> Unit = {}
 ) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         val isConnecting = statusMessage.contains("اتصال", ignoreCase = true) ||
@@ -76,6 +79,12 @@ fun MainScreen(
                         onClick = { onToggleVpn(!isVpnRunning) }
                     )
                 }
+
+                Text(
+                    text = "اتصال امن به روتر ابری هایو",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -115,8 +124,8 @@ fun MainScreen(
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                         Text(
-                                            text = if (isVpnRunning) statusMessage.ifEmpty { "متصل" }
-                                            else if (isConnecting) statusMessage.ifEmpty { "در حال اتصال" }
+                                            text = if (isVpnRunning) "متصل"
+                                            else if (isConnecting) "در حال اتصال"
                                             else "قطع شده",
                                             fontSize = 17.sp,
                                             fontWeight = FontWeight.Bold,
@@ -232,7 +241,7 @@ fun MainScreen(
                                 }
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Text(
-                                    text = "تنظیمات تروجان",
+                                    text = "روتر ابری",
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onSurface
@@ -279,7 +288,7 @@ fun MainScreen(
                                         )
                                         Spacer(modifier = Modifier.width(10.dp))
                                         Text(
-                                            text = "برای تنظیم تروجان ضربه بزنید",
+                                            text = "برای تنظیم روتر ابری ضربه بزنید",
                                             color = MaterialTheme.colorScheme.primary,
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.Medium
@@ -300,7 +309,8 @@ fun MainScreen(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .shadow(4.dp, RoundedCornerShape(20.dp)),
+                            .shadow(4.dp, RoundedCornerShape(20.dp))
+                            .clickable { onManageDomainsClick() },
                         shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surface
@@ -331,35 +341,52 @@ fun MainScreen(
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
                                     Text(
-                                        text = "دامنه\u200Cهای بای\u200Cپس",
+                                        text = "دامنه\u200Cهای روتر",
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = if (domainCount > 0) "$domainCount دامنه فعال" else "هیچ دامنه\u200Cای بارگذاری نشده",
+                                        text = if (domainCount > 0) "$domainCount دامنه از تونل عبور می\u200Cکنند"
+                                        else "هیچ دامنه\u200Cای بارگذاری نشده",
                                         fontSize = 12.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
+                                    if (excludedCount > 0) {
+                                        Text(
+                                            text = "$excludedCount دامنه مستقیم (بدون تونل)",
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
                                 }
                             }
 
-                            Surface(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(
-                                        if (domainCount > 0) Connected.copy(alpha = 0.12f)
-                                        else Disconnected.copy(alpha = 0.12f)
-                                    ),
-                                shape = RoundedCornerShape(12.dp),
-                                color = Color.Transparent
-                            ) {
-                                Text(
-                                    text = if (domainCount > 0) "$domainCount" else "0",
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (domainCount > 0) Connected else Disconnected
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Surface(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(
+                                            if (domainCount > 0) Connected.copy(alpha = 0.12f)
+                                            else Disconnected.copy(alpha = 0.12f)
+                                        ),
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = Color.Transparent
+                                ) {
+                                    Text(
+                                        text = if (domainCount > 0) "$domainCount" else "0",
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                        fontSize = 17.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (domainCount > 0) Connected else Disconnected
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = "مدیریت دامنه\u200Cها",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         }

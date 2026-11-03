@@ -52,7 +52,7 @@ sealed class Screen(val route: String, val title: String) {
     data object Domains : Screen("domains", "دامنه‌ها")
     data object Store : Screen("store", "فروشگاه")
     data object Settings : Screen("settings", "تنظیمات")
-    data object Config : Screen("config", "تنظیمات تروجان")
+    data object Config : Screen("config", "تنظیمات روتر ابری")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -72,6 +72,7 @@ fun HaioBypassApp(
 
         val config by configManager.config.collectAsState()
         val domainCount by domainStore.domainCount.collectAsState()
+        val excludedCount by domainStore.excludedDomains.collectAsState()
 
         val proxyState by ProxyManager.proxyState.collectAsState()
         val proxyStatusMessage by ProxyManager.statusMessage.collectAsState()
@@ -335,6 +336,7 @@ fun HaioBypassApp(
                         isVpnRunning = isVpnRunning,
                         statusMessage = statusMessage,
                         domainCount = domainCount,
+                        excludedCount = excludedCount.size,
                         subscriptionInfo = subscriptionInfo,
                         isRefreshingSub = isRefreshingSub,
                         subFetchError = subFetchError,
@@ -344,7 +346,7 @@ fun HaioBypassApp(
                             if (shouldStart) {
                                 if (ConfigManager(context).getConfig().trojanConfig == null) {
                                     scope.launch {
-                                        snackbarHostState.showSnackbar("ابتدا تروجان را تنظیم کنید")
+                                        snackbarHostState.showSnackbar("ابتدا روتر ابری را تنظیم کنید")
                                     }
                                     navController.navigate(Screen.Config.route)
                                 } else {
@@ -374,6 +376,15 @@ fun HaioBypassApp(
                         },
                         onConfigureClick = {
                             navController.navigate(Screen.Config.route)
+                        },
+                        onManageDomainsClick = {
+                            navController.navigate(Screen.Domains.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
                         }
                     )
                 }

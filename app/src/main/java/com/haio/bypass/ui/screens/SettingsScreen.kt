@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
@@ -29,6 +30,15 @@ fun SettingsScreen(
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         val config by configManager.config.collectAsState()
         var showClearDialog by remember { mutableStateOf(false) }
+        val context = LocalContext.current
+        val appVersion = remember {
+            try {
+                context.packageManager.getPackageInfo(context.packageName, 0).versionName
+                    ?: "نامشخص"
+            } catch (_: Exception) {
+                "نامشخص"
+            }
+        }
 
         Column(
             modifier = Modifier
@@ -101,7 +111,7 @@ fun SettingsScreen(
                     modifier = Modifier.padding(vertical = 2.dp),
                     color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
                 )
-                SettingsInfoRow("DNS جعلی", "10.0.0.1", Icons.Default.Public)
+                SettingsInfoRow("محدوده DNS جعلی", "198.18.0.0/15", Icons.Default.Public)
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -110,7 +120,7 @@ fun SettingsScreen(
                 icon = Icons.Default.Info,
                 title = "درباره"
             ) {
-                SettingsInfoRow("نسخه", "1.1.0-beta", Icons.Default.Tag)
+                SettingsInfoRow("نسخه", appVersion, Icons.Default.Tag)
                 HorizontalDivider(
                     modifier = Modifier.padding(vertical = 2.dp),
                     color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
@@ -120,7 +130,7 @@ fun SettingsScreen(
                     modifier = Modifier.padding(vertical = 2.dp),
                     color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
                 )
-                SettingsInfoRow("پروتکل", "Trojan", Icons.Default.Shield)
+                SettingsInfoRow("نوع اتصال", "روتر ابری هایو", Icons.Default.Shield)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -154,7 +164,7 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "با پاک کردن کانفیگ، تمام تنظیمات ذخیره\u200Cشده و کانفیگ تروجان حذف می\u200Cشود.",
+                        text = "با پاک کردن کانفیگ، تمام تنظیمات ذخیره\u200Cشده و کانفیگ روتر ابری حذف می\u200Cشود.",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
                         modifier = Modifier.padding(top = 4.dp)
@@ -207,7 +217,7 @@ fun SettingsScreen(
                     )
                 },
                 text = {
-                    Text("این کار تمام تنظیمات ذخیره\u200Cشده و کانفیگ تروجان را حذف می\u200Cکند. این عملیات قابل بازگشت نیست.")
+                    Text("این کار تمام تنظیمات ذخیره\u200Cشده و کانفیگ روتر ابری را حذف می\u200Cکند. این عملیات قابل بازگشت نیست.")
                 },
                 confirmButton = {
                     Button(

@@ -11,7 +11,7 @@
     <string name="domains_active">%d domains active</string>
     <string name="no_domains">No domains loaded</string>
     <string name="domain_fetch_error">Failed to fetch domains</string>
-    <string name="trojan_url_hint">trojan://password@server:443?sni=server.com</string>
+    <string name="trojan_url_hint">Paste your Haio Cloud Router connection link</string>
     <string name="save">Save</string>
     <string name="refresh">Refresh</string>
     <string name="main">Main</string>

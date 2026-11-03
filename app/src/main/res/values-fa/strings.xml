@@ -11,7 +11,7 @@
     <string name="domains_active">تعداد دامنه‌های فعال: %d</string>
     <string name="no_domains">هیچ دامنه‌ای بارگذاری نشده</string>
     <string name="domain_fetch_error">دریافت دامنه‌ها ناموفق بود</string>
-    <string name="trojan_url_hint">trojan://password@server:443?sni=server.com</string>
+    <string name="trojan_url_hint">لینک اتصال روتر ابری هایو را وارد کنید</string>
     <string name="save">ذخیره</string>
     <string name="refresh">به‌روزرسانی</string>
     <string name="main">خانه</string>

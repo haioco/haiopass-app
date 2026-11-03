@@ -123,9 +123,17 @@ class MainActivity : ComponentActivity() {
                             }
                             */
                             splashScope.launch {
-                                val domains = domainFetcher.fetch()
-                                if (domains.isNotEmpty()) {
-                                    domainStore.setDomains(domains)
+                                // The splash animation is not blocked by this call,
+                                // and a fresh cache avoids a needless network round
+                                // trip on every cold start.
+                                val cacheAge = System.currentTimeMillis() - domainStore.lastFetchTime.value
+                                val cacheIsStale = domainStore.getDomainCount() == 0 ||
+                                        cacheAge > DOMAIN_CACHE_TTL_MS
+                                if (cacheIsStale) {
+                                    val domains = domainFetcher.fetch()
+                                    if (domains.isNotEmpty()) {
+                                        domainStore.setDomains(domains)
+                                    }
                                 }
                             }
                             showSplash = false
@@ -165,5 +173,6 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         private const val TAG = "MainActivity"
+        private const val DOMAIN_CACHE_TTL_MS = 6 * 60 * 60 * 1000L
     }
 }

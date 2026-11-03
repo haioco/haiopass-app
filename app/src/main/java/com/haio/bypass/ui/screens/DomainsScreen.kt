@@ -4,7 +4,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -26,6 +25,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -33,6 +33,11 @@ import com.haio.bypass.domain.DomainStore
 import com.haio.bypass.ui.theme.Connected
 
 private const val PAGE_SIZE = 50
+
+private enum class DomainTab(val title: String) {
+    TUNNEL("از تونل"),
+    DIRECT("مستقیم")
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,8 +47,11 @@ fun DomainsScreen(
 ) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         val allDomains by domainStore.domains.collectAsState()
+        val excludedDomains by domainStore.excludedDomains.collectAsState()
+        val customDomains by domainStore.customDomains.collectAsState()
         val domainCount by domainStore.domainCount.collectAsState()
         val lastFetchTime by domainStore.lastFetchTime.collectAsState()
+        var selectedTab by remember { mutableIntStateOf(0) }
         var searchQuery by remember { mutableStateOf("") }
         var showAddDialog by remember { mutableStateOf(false) }
         var newDomain by remember { mutableStateOf("") }
@@ -51,10 +59,12 @@ fun DomainsScreen(
         var currentPage by remember { mutableIntStateOf(0) }
         val focusRequester = remember { FocusRequester() }
         val focusManager = LocalFocusManager.current
+        val tab = DomainTab.entries[selectedTab]
 
-        val filteredDomains = remember(searchQuery, allDomains) {
-            if (searchQuery.isEmpty()) allDomains
-            else allDomains.filter { it.contains(searchQuery, ignoreCase = true) }
+        val sourceList = if (tab == DomainTab.TUNNEL) allDomains else excludedDomains
+        val filteredDomains = remember(searchQuery, sourceList) {
+            if (searchQuery.isEmpty()) sourceList
+            else sourceList.filter { it.contains(searchQuery, ignoreCase = true) }
         }
 
         val totalPages = (filteredDomains.size + PAGE_SIZE - 1) / PAGE_SIZE
@@ -62,7 +72,7 @@ fun DomainsScreen(
         val clampedPage = currentPage.coerceIn(0, safeTotalPages - 1)
         val pagedDomains = filteredDomains.drop(clampedPage * PAGE_SIZE).take(PAGE_SIZE)
 
-        LaunchedEffect(searchQuery) { currentPage = 0 }
+        LaunchedEffect(searchQuery, selectedTab) { currentPage = 0 }
 
         val lastFetchText = remember(lastFetchTime) {
             if (lastFetchTime > 0) com.haio.bypass.ui.util.JalaliDate.formatMillis(lastFetchTime)
@@ -72,11 +82,11 @@ fun DomainsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
         ) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(20.dp),
                 color = MaterialTheme.colorScheme.surface,
                 shadowElevation = 2.dp
             ) {
@@ -89,8 +99,8 @@ fun DomainsScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(RoundedCornerShape(10.dp))
+                                    .size(38.dp)
+                                    .clip(RoundedCornerShape(12.dp))
                                     .background(Connected.copy(alpha = 0.12f)),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -98,19 +108,19 @@ fun DomainsScreen(
                                     Icons.Default.Language,
                                     contentDescription = null,
                                     tint = Connected,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(21.dp)
                                 )
                             }
                             Spacer(modifier = Modifier.width(10.dp))
                             Column {
                                 Text(
-                                    text = "دامنه\u200Cهای بای\u200Cپس",
+                                    text = "مدیریت دامنه‌ها",
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "آخرین دریافت: $lastFetchText",
+                                    text = "$domainCount از تونل  •  ${excludedDomains.size} مستقیم",
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -118,10 +128,7 @@ fun DomainsScreen(
                         }
 
                         Row {
-                            IconButton(
-                                onClick = { showAddDialog = true },
-                                modifier = Modifier.size(40.dp)
-                            ) {
+                            IconButton(onClick = { showAddDialog = true }) {
                                 Icon(
                                     Icons.Default.Add,
                                     contentDescription = "افزودن دامنه",
@@ -129,13 +136,10 @@ fun DomainsScreen(
                                     modifier = Modifier.size(22.dp)
                                 )
                             }
-                            IconButton(
-                                onClick = onRefresh,
-                                modifier = Modifier.size(40.dp)
-                            ) {
+                            IconButton(onClick = onRefresh) {
                                 Icon(
                                     Icons.Default.Refresh,
-                                    contentDescription = "به\u200Cروزرسانی",
+                                    contentDescription = "به‌روزرسانی دامنه‌ها",
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(22.dp)
                                 )
@@ -143,7 +147,7 @@ fun DomainsScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     OutlinedTextField(
                         value = searchQuery,
@@ -172,7 +176,7 @@ fun DomainsScreen(
                                 ) {
                                     Icon(
                                         Icons.Default.Close,
-                                        contentDescription = "پاک کردن",
+                                        contentDescription = "پاک کردن جستجو",
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(16.dp)
                                     )
@@ -192,53 +196,99 @@ fun DomainsScreen(
                             unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
                         )
                     )
+                }
+            }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "$domainCount دامنه بارگذاری شد" +
-                                    if (filteredDomains.size != allDomains.size)
-                                        " (${filteredDomains.size} مورد)" else "",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        if (safeTotalPages > 1) {
+            TabRow(
+                selectedTabIndex = selectedTab,
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.primary,
+                divider = {},
+                modifier = Modifier.clip(RoundedCornerShape(14.dp))
+            ) {
+                DomainTab.entries.forEachIndexed { index, item ->
+                    Tab(
+                        selected = selectedTab == index,
+                        onClick = { selectedTab = index },
+                        text = {
+                            val count = if (item == DomainTab.TUNNEL) allDomains.size else excludedDomains.size
                             Text(
-                                text = "صفحه ${clampedPage + 1} از $safeTotalPages",
+                                text = "${item.title} ($count)",
                                 fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                fontWeight = if (selectedTab == index) FontWeight.SemiBold else FontWeight.Normal,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
-                    }
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            if (filteredDomains.isEmpty() && searchQuery.isNotEmpty()) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.07f)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Info,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (tab == DomainTab.TUNNEL)
+                            "کلید هر دامنه را خاموش کنید تا مستقیم و بدون تونل باز شود. تغییرات پس از اتصال مجدد اعمال می‌شود."
+                        else
+                            "این دامنه‌ها همیشه مستقیم باز می‌شوند، حتی اگر در لیست بای‌پس باشند.",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (filteredDomains.isEmpty()) {
                 Box(
-                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
-                            Icons.Default.SearchOff,
+                            if (searchQuery.isNotEmpty()) Icons.Default.SearchOff else Icons.Default.Language,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                            modifier = Modifier.size(48.dp)
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                            modifier = Modifier.size(52.dp)
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            text = "نتیجه\u200Cای یافت نشد",
-                            fontSize = 14.sp,
+                            text = when {
+                                searchQuery.isNotEmpty() -> "نتیجه‌ای یافت نشد"
+                                tab == DomainTab.DIRECT -> "هنوز دامنه‌ای برای اتصال مستقیم انتخاب نشده"
+                                else -> "لیست دامنه‌ها خالی است"
+                            },
+                            fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        if (tab == DomainTab.DIRECT && searchQuery.isEmpty()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "با دکمه + یک دامنه اضافه کنید",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            )
+                        }
                     }
                 }
             } else {
@@ -249,14 +299,28 @@ fun DomainsScreen(
                     items(pagedDomains, key = { it }) { domain ->
                         DomainItemCard(
                             domain = domain,
+                            routedThroughTunnel = tab == DomainTab.TUNNEL,
+                            canDelete = customDomains.contains(domain),
+                            onToggle = { throughTunnel ->
+                                if (throughTunnel) domainStore.includeDomain(domain)
+                                else domainStore.excludeDomain(domain)
+                            },
                             onDelete = { domainStore.removeDomain(domain) }
                         )
                     }
                 }
             }
 
+            Text(
+                text = "آخرین دریافت: $lastFetchText" +
+                        if (filteredDomains.size != sourceList.size) "  •  ${filteredDomains.size} نتیجه" else "",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 6.dp)
+            )
+
             if (safeTotalPages > 1) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 PaginationBar(
                     currentPage = clampedPage,
                     totalPages = safeTotalPages,
@@ -264,6 +328,8 @@ fun DomainsScreen(
                     onNext = { if (clampedPage < safeTotalPages - 1) currentPage++ }
                 )
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
         }
 
         if (showAddDialog) {
@@ -273,34 +339,56 @@ fun DomainsScreen(
                     newDomain = ""
                     addError = false
                 },
+                icon = {
+                    Icon(
+                        if (tab == DomainTab.TUNNEL) Icons.Default.Language else Icons.Default.Public,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                },
                 title = {
                     Text(
-                        "افزودن دامنه",
+                        if (tab == DomainTab.TUNNEL) "افزودن دامنه به تونل" else "افزودن دامنه مستقیم",
                         fontWeight = FontWeight.SemiBold
                     )
                 },
                 text = {
-                    OutlinedTextField(
-                        value = newDomain,
-                        onValueChange = {
-                            newDomain = it
-                            addError = false
-                        },
-                        placeholder = { Text("example.com") },
-                        singleLine = true,
-                        isError = addError,
-                        supportingText = if (addError) {
-                            { Text("لطفاً یک دامنه معتبر وارد کنید") }
-                        } else null,
-                        shape = RoundedCornerShape(10.dp)
-                    )
+                    Column {
+                        Text(
+                            if (tab == DomainTab.TUNNEL)
+                                "این دامنه و زیردامنه‌هایش از روتر ابری عبور می‌کنند."
+                            else
+                                "این دامنه و زیردامنه‌هایش هرگز از تونل عبور نمی‌کنند.",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        OutlinedTextField(
+                            value = newDomain,
+                            onValueChange = {
+                                newDomain = it
+                                addError = false
+                            },
+                            placeholder = { Text("example.com") },
+                            singleLine = true,
+                            isError = addError,
+                            supportingText = if (addError) {
+                                { Text("لطفاً یک دامنه معتبر وارد کنید") }
+                            } else null,
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                    }
                 },
                 confirmButton = {
                     Button(
                         onClick = {
                             val trimmed = newDomain.trim()
                             if (trimmed.isNotBlank() && trimmed.contains(".")) {
-                                domainStore.addDomain(trimmed)
+                                if (tab == DomainTab.TUNNEL) {
+                                    domainStore.addDomain(trimmed)
+                                } else {
+                                    domainStore.excludeDomain(trimmed)
+                                }
                                 newDomain = ""
                                 addError = false
                                 showAddDialog = false
@@ -331,52 +419,66 @@ fun DomainsScreen(
 @Composable
 private fun DomainItemCard(
     domain: String,
+    routedThroughTunnel: Boolean,
+    canDelete: Boolean,
+    onToggle: (Boolean) -> Unit,
     onDelete: () -> Unit
 ) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
         ),
-        shape = RoundedCornerShape(10.dp)
+        shape = RoundedCornerShape(12.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+                .padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                Icon(
-                    Icons.Default.Public,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(
-                    text = domain,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+            Icon(
+                if (routedThroughTunnel) Icons.Default.Shield else Icons.Default.Public,
+                contentDescription = null,
+                tint = if (routedThroughTunnel) Connected.copy(alpha = 0.7f)
+                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = domain,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+
+            if (canDelete) {
+                IconButton(
+                    onClick = { showDeleteConfirm = true },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "حذف دامنه",
+                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
+                        modifier = Modifier.size(17.dp)
+                    )
+                }
             }
 
-            IconButton(
-                onClick = { showDeleteConfirm = true },
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = "حذف",
-                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
-                    modifier = Modifier.size(18.dp)
+            Switch(
+                checked = routedThroughTunnel,
+                onCheckedChange = onToggle,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = MaterialTheme.colorScheme.primary,
+                    checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
                 )
-            }
+            )
         }
     }
 
@@ -417,9 +519,9 @@ private fun PaginationBar(
     onNext: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 2.dp
+        shadowElevation = 1.dp
     ) {
         Row(
             modifier = Modifier
@@ -431,7 +533,7 @@ private fun PaginationBar(
             FilledIconButton(
                 onClick = onPrevious,
                 enabled = currentPage > 0,
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier.size(38.dp),
                 colors = IconButtonDefaults.filledIconButtonColors(
                     containerColor = if (currentPage > 0)
                         MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
@@ -461,7 +563,7 @@ private fun PaginationBar(
             FilledIconButton(
                 onClick = onNext,
                 enabled = currentPage < totalPages - 1,
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier.size(38.dp),
                 colors = IconButtonDefaults.filledIconButtonColors(
                     containerColor = if (currentPage < totalPages - 1)
                         MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)

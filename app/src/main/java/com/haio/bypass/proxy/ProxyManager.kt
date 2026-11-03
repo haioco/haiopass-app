@@ -27,29 +27,23 @@ class ProxyManager(
 
     suspend fun start(tunFd: Int, trojanConfig: TrojanConfig) {
         _proxyState.value = ProxyState.CONNECTING
-        _statusMessage.value = "Fetching domains..."
+        _statusMessage.value = "Starting cloud router..."
 
         try {
-            val domains = domainFetcher.fetch()
-            if (domains.isNotEmpty()) {
-                domainStore.setDomains(domains)
-            } else {
-                val cached = domainStore.getDomains()
-                if (cached.isNotEmpty()) {
-                    _statusMessage.value = "Using ${cached.size} cached domains..."
-                }
-            }
-
+            // Never block the first connection on a remote HTTP fetch. The
+            // cached list is already persisted locally; a background refresh
+            // updates it for the next connection without delaying startup.
             _statusMessage.value = "Starting xray..."
 
             val socksPort = configManager.getConfig().socksPort
             val configJson = configGenerator.generateConfig(
                 socksPort = socksPort,
                 trojanConfig = trojanConfig,
-                bypassDomains = domainStore.getDomains()
+                bypassDomains = domainStore.getDomains(),
+                directDomains = domainStore.getExcludedDomains()
             )
 
-            val xrayStarted = xrayManager.start(configJson)
+            val xrayStarted = xrayManager.start(configJson, socksPort)
             if (!xrayStarted) {
                 _proxyState.value = ProxyState.DISCONNECTED
                 _statusMessage.value = "Failed to start xray"
@@ -108,13 +102,17 @@ class ProxyManager(
     private fun startPeriodicRefresh() {
         refreshJob?.cancel()
         refreshJob = scope.launch {
+            // Refresh once shortly after the tunnel is up, then hourly. The
+            // first fetch is deliberately after CONNECTED so it cannot delay
+            // the user-visible connection.
+            delay(INITIAL_REFRESH_DELAY)
             while (isActive) {
-                delay(REFRESH_INTERVAL)
                 val domains = domainFetcher.fetch()
                 if (domains.isNotEmpty()) {
                     domainStore.setDomains(domains)
                     _statusMessage.value = "Connected - ${domainStore.getDomainCount()} domains"
                 }
+                delay(REFRESH_INTERVAL)
             }
         }
     }
@@ -133,6 +131,7 @@ class ProxyManager(
     class ProxyStartException(message: String) : Exception(message)
 
     companion object {
+        private const val INITIAL_REFRESH_DELAY = 3_000L
         private val REFRESH_INTERVAL = 60 * 60 * 1000L
 
         private val _proxyState = MutableStateFlow(ProxyState.DISCONNECTED)

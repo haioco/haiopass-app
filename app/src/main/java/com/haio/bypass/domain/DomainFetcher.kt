@@ -14,8 +14,8 @@ class DomainFetcher {
     constructor(@Suppress("UNUSED_PARAMETER") context: Context)
 
     private val client = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(10, TimeUnit.SECONDS)
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .readTimeout(5, TimeUnit.SECONDS)
         .build()
 
     suspend fun fetch(): List<String> = withContext(Dispatchers.IO) {

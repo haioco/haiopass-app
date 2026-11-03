@@ -47,7 +47,7 @@ class HaioVpnService : VpnService() {
 
         val trojanConfig = configManager.getConfig().trojanConfig
         if (trojanConfig == null) {
-            Log.e(TAG, "No Trojan config, stopping")
+            Log.e(TAG, "No cloud router config, stopping")
             ProxyManager.resetState()
             stopForegroundCompat()
             stopSelf()

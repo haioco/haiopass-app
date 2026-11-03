@@ -15,14 +15,19 @@ class XrayConfigGenerator {
     fun generateConfig(
         socksPort: Int,
         trojanConfig: TrojanConfig,
-        bypassDomains: List<String>
+        bypassDomains: List<String>,
+        directDomains: List<String> = emptyList()
     ): String {
-        val domainRules = bypassDomains.map { "domain:$it" }
+        val directSet = directDomains.toSet()
+        val domainRules = bypassDomains
+            .filterNot { directSet.contains(it) }
+            .map { "domain:$it" }
+        val directRules = directDomains.map { "domain:$it" }
         val fakeIpPool = "198.18.0.0/15"
 
         val config = buildJsonObject {
             put("log", buildJsonObject {
-                put("loglevel", JsonPrimitive("debug"))
+                put("loglevel", JsonPrimitive("warning"))
             })
 
             put("inbounds", buildJsonArray {
@@ -133,7 +138,20 @@ class XrayConfigGenerator {
                         put("network", JsonPrimitive("udp,tcp"))
                         put("outboundTag", JsonPrimitive("dns-out"))
                     })
-                    // 2) Drop QUIC (UDP/443) so apps fall back to TCP/TLS, which
+                    // 2) User exclusions always win: these domains (and their
+                    // subdomains) connect directly even if they are in the
+                    // downloaded bypass list. The rule is placed above the QUIC
+                    // block so direct domains may keep using UDP/443.
+                    if (directRules.isNotEmpty()) {
+                        add(buildJsonObject {
+                            put("type", JsonPrimitive("field"))
+                            put("domain", buildJsonArray {
+                                directRules.forEach { rule -> add(JsonPrimitive(rule)) }
+                            })
+                            put("outboundTag", JsonPrimitive("direct"))
+                        })
+                    }
+                    // 3) Drop QUIC (UDP/443) so apps fall back to TCP/TLS, which
                     // works reliably through the trojan-TCP outbound.
                     add(buildJsonObject {
                         put("type", JsonPrimitive("field"))
@@ -141,13 +159,13 @@ class XrayConfigGenerator {
                         put("network", JsonPrimitive("udp"))
                         put("outboundTag", JsonPrimitive("block"))
                     })
-                    // 3) Any connection to a FakeIP destination goes through the proxy.
+                    // 4) Any connection to a FakeIP destination goes through the proxy.
                     add(buildJsonObject {
                         put("type", JsonPrimitive("field"))
                         put("ip", buildJsonArray { add(JsonPrimitive(fakeIpPool)) })
                         put("outboundTag", JsonPrimitive("proxy"))
                     })
-                    // 4) Explicit domain rules -> proxy (covers SNI-visible traffic too).
+                    // 5) Explicit domain rules -> proxy (covers SNI-visible traffic too).
                     if (domainRules.isNotEmpty()) {
                         add(buildJsonObject {
                             put("type", JsonPrimitive("field"))
@@ -157,7 +175,7 @@ class XrayConfigGenerator {
                             put("outboundTag", JsonPrimitive("proxy"))
                         })
                     }
-                    // 5) Everything else (non-bypass) goes direct.
+                    // 6) Everything else (non-bypass) goes direct.
                     add(buildJsonObject {
                         put("type", JsonPrimitive("field"))
                         put("network", JsonPrimitive("tcp,udp"))

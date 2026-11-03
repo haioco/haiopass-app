@@ -64,7 +64,7 @@ fun ConfigScreen(
                 }
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = "تنظیمات تروجان",
+                    text = "اتصال به روتر ابری",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onBackground
@@ -84,7 +84,7 @@ fun ConfigScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "آدرس تروجان",
+                        text = "لینک اتصال",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
@@ -102,14 +102,18 @@ fun ConfigScreen(
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = {
                             Text(
-                                "trojan://password@server:443?sni=server.com",
+                                "لینک اتصال خود را از پنل هایو اینجا وارد کنید",
                                 fontSize = 13.sp
                             )
                         },
                         isError = showError,
-                        supportingText = if (showError) {
-                            { Text(errorMessage, fontSize = 12.sp) }
-                        } else null,
+                        supportingText = {
+                            Text(
+                                if (showError) errorMessage
+                                else "لینک را از پنل کاربری هایو کپی کنید.",
+                                fontSize = 12.sp
+                            )
+                        },
                         minLines = 3,
                         maxLines = 5,
                         shape = RoundedCornerShape(12.dp),
@@ -156,7 +160,7 @@ fun ConfigScreen(
                             onClick = {
                                 if (trojanUrl.isBlank()) {
                                     showError = true
-                                    errorMessage = "آدرس تروجان نمی\u200Cتواند خالی باشد"
+                                    errorMessage = "لینک اتصال نمی\u200Cتواند خالی باشد"
                                     return@Button
                                 }
                                 val parsed = TrojanUrlParser.parse(trojanUrl)
@@ -172,7 +176,7 @@ fun ConfigScreen(
                                     onSave()
                                 } else {
                                     showError = true
-                                    errorMessage = "آدرس تروجان نامعتبر است. فرمت صحیح را بررسی کنید."
+                                    errorMessage = "لینک اتصال نامعتبر است. لینک را از پنل هایو دوباره کپی کنید."
                                     saved = false
                                 }
                             },

@@ -25,18 +25,24 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
     private var xrayPid: Int? = null
     private var tun2SocksPid: Int? = null
     private var intentionalStop = false
+    private var currentSocksPort: Int = 10808
 
     private val workDir: File by lazy {
         File(context.codeCacheDir, "xray").also { it.mkdirs() }
     }
     private val configFile: File by lazy { File(workDir, "config.json") }
 
-    suspend fun start(configJson: String): Boolean {
+    suspend fun start(configJson: String, socksPort: Int = currentSocksPort): Boolean {
         stop()
 
+        currentSocksPort = socksPort
         intentionalStop = false
         configFile.writeText(configJson)
-        Log.d(TAG, "xray config:\n$configJson")
+        if (Log.isLoggable(TAG, Log.DEBUG)) {
+            // The generated config can be hundreds of KB with a large domain
+            // list; only build this log message when debug logging is enabled.
+            Log.d(TAG, "xray config:\n$configJson")
+        }
 
         val binary = extractBinary() ?: run {
             Log.e(TAG, "xray binary extraction failed")
@@ -71,13 +77,12 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
                 } catch (_: Exception) {}
             }
 
-            val deadline = System.currentTimeMillis() + 5_000
-            while (System.currentTimeMillis() < deadline) {
-                if (!isXrayRunning()) break
-                delay(200)
-            }
+            // Wait until the SOCKS inbound is actually accepting connections
+            // instead of sleeping a fixed 5 seconds. This removes a large chunk
+            // of connection latency while still catching config errors early.
+            val ready = waitForSocksPort(socksPort, SOCKS_READY_TIMEOUT_MS)
 
-            if (!isXrayRunning()) {
+            if (!ready || !isXrayRunning()) {
                 val exitCode = try { xrayProcess?.exitValue() } catch (_: Exception) { -1 }
                 Log.e(TAG, "xray exited with code $exitCode")
                 xrayProcess = null
@@ -137,6 +142,22 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
         return isXrayRunning() && (tun2SocksProcess == null || isTun2SocksRunning())
     }
 
+    private suspend fun waitForSocksPort(port: Int, timeoutMs: Long): Boolean {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            if (!isXrayRunning()) return false
+            try {
+                java.net.Socket().use { socket ->
+                    socket.connect(java.net.InetSocketAddress("127.0.0.1", port), 100)
+                    return true
+                }
+            } catch (_: Exception) {
+                delay(50)
+            }
+        }
+        return false
+    }
+
     private fun isXrayRunning(): Boolean {
         return try {
             xrayProcess?.exitValue()
@@ -158,7 +179,7 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
                     delay(1000)
                     if (!intentionalStop) {
                         val config = configFile.readText()
-                        start(config)
+                        start(config, currentSocksPort)
                     }
                 }
             }
@@ -264,7 +285,7 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
             clientSocket.close()
             serverSocket.close()
 
-            val deadline = System.currentTimeMillis() + 8_000
+            val deadline = System.currentTimeMillis() + TUN2SOCKS_START_GRACE_MS
             while (System.currentTimeMillis() < deadline) {
                 if (!isTun2SocksRunning()) break
                 delay(100)
@@ -502,5 +523,7 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
     companion object {
         private const val TAG = "XrayManager"
         private val WATCHDOG_INTERVAL = 10_000L
+        private const val SOCKS_READY_TIMEOUT_MS = 3_000L
+        private const val TUN2SOCKS_START_GRACE_MS = 1_200L
     }
 }
