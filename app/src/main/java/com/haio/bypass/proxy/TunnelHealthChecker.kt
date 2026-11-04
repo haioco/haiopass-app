@@ -22,9 +22,12 @@ import javax.net.ssl.SSLSocketFactory
 object TunnelHealthChecker {
 
     private const val TAG = "TunnelHealth"
-    private const val CONNECT_TIMEOUT_MS = 3_000
-    private const val READ_TIMEOUT_MS = 3_000
-    private const val TOTAL_TIMEOUT_MS = 6_000L
+    // Match the desktop probe: 10s for the TCP connect and 10s for the TLS
+    // handshake. The probe runs concurrently with Xray startup, so a healthy
+    // server adds no visible delay.
+    private const val CONNECT_TIMEOUT_MS = 10_000
+    private const val READ_TIMEOUT_MS = 10_000
+    private const val TOTAL_TIMEOUT_MS = 20_000L
 
     suspend fun check(config: TrojanConfig): Boolean = withContext(Dispatchers.IO) {
         withTimeoutOrNull(TOTAL_TIMEOUT_MS) {
