@@ -341,7 +341,7 @@ fun MainScreen(
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
                                     Text(
-                                        text = "دامنه\u200Cهای روتر",
+                                        text = "لیست عبور مستقیم",
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         color = MaterialTheme.colorScheme.onSurface
@@ -384,7 +384,7 @@ fun MainScreen(
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Icon(
                                     Icons.AutoMirrored.Filled.ArrowForward,
-                                    contentDescription = "مدیریت دامنه\u200Cها",
+                                    contentDescription = "مدیریت لیست عبور مستقیم",
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                     modifier = Modifier.size(18.dp)
                                 )

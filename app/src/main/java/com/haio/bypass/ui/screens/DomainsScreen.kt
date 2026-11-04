@@ -36,7 +36,7 @@ private const val PAGE_SIZE = 50
 
 private enum class DomainTab(val title: String) {
     TUNNEL("از تونل"),
-    DIRECT("مستقیم")
+    DIRECT("عبور مستقیم")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,7 +51,7 @@ fun DomainsScreen(
         val customDomains by domainStore.customDomains.collectAsState()
         val domainCount by domainStore.domainCount.collectAsState()
         val lastFetchTime by domainStore.lastFetchTime.collectAsState()
-        var selectedTab by remember { mutableIntStateOf(0) }
+        var selectedTab by remember { mutableIntStateOf(1) }
         var searchQuery by remember { mutableStateOf("") }
         var showAddDialog by remember { mutableStateOf(false) }
         var newDomain by remember { mutableStateOf("") }
@@ -114,7 +114,7 @@ fun DomainsScreen(
                             Spacer(modifier = Modifier.width(10.dp))
                             Column {
                                 Text(
-                                    text = "مدیریت دامنه‌ها",
+                                    text = "لیست عبور مستقیم",
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onSurface
@@ -246,9 +246,9 @@ fun DomainsScreen(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = if (tab == DomainTab.TUNNEL)
-                            "کلید هر دامنه را خاموش کنید تا مستقیم و بدون تونل باز شود. تغییرات پس از اتصال مجدد اعمال می‌شود."
+                            "کلید هر دامنه را خاموش کنید تا مستقیم و بدون تونل باز شود. تغییرات بدون قطع اتصال اعمال می‌شوند."
                         else
-                            "این دامنه‌ها همیشه مستقیم باز می‌شوند، حتی اگر در لیست بای‌پس باشند.",
+                            "این دامنه‌ها و زیردامنه‌هایشان همیشه مستقیم وصل می‌شوند، حتی اگر در لیست پروکسی باشند.",
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -274,8 +274,8 @@ fun DomainsScreen(
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
                             text = when {
-                                searchQuery.isNotEmpty() -> "نتیجه‌ای یافت نشد"
-                                tab == DomainTab.DIRECT -> "هنوز دامنه‌ای برای اتصال مستقیم انتخاب نشده"
+                                searchQuery.isNotEmpty() -> "دامنه‌ای پیدا نشد"
+                                tab == DomainTab.DIRECT -> "هنوز دامنه‌ای اضافه نشده"
                                 else -> "لیست دامنه‌ها خالی است"
                             },
                             fontSize = 13.sp,
@@ -284,7 +284,7 @@ fun DomainsScreen(
                         if (tab == DomainTab.DIRECT && searchQuery.isEmpty()) {
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "با دکمه + یک دامنه اضافه کنید",
+                                text = "دامنه‌ای را بالا اضافه کنید تا از تونل خارج شود.",
                                 fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                             )
@@ -348,7 +348,7 @@ fun DomainsScreen(
                 },
                 title = {
                     Text(
-                        if (tab == DomainTab.TUNNEL) "افزودن دامنه به تونل" else "افزودن دامنه مستقیم",
+                        if (tab == DomainTab.TUNNEL) "افزودن دامنه به تونل" else "افزودن به لیست عبور مستقیم",
                         fontWeight = FontWeight.SemiBold
                     )
                 },
@@ -358,7 +358,7 @@ fun DomainsScreen(
                             if (tab == DomainTab.TUNNEL)
                                 "این دامنه و زیردامنه‌هایش از روتر ابری عبور می‌کنند."
                             else
-                                "این دامنه و زیردامنه‌هایش هرگز از تونل عبور نمی‌کنند.",
+                                "این دامنه و زیردامنه‌هایش همیشه مستقیم وصل می‌شوند، حتی اگر در لیست پروکسی باشند.",
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -373,7 +373,7 @@ fun DomainsScreen(
                             singleLine = true,
                             isError = addError,
                             supportingText = if (addError) {
-                                { Text("لطفاً یک دامنه معتبر وارد کنید") }
+                                { Text("دامنه معتبر نیست") }
                             } else null,
                             shape = RoundedCornerShape(10.dp)
                         )

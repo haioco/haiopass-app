@@ -85,6 +85,10 @@ class HaioPrefs(context: Context) {
         get() = prefs.getString(KEY_JWT_REFRESH, null)
         set(value) = prefs.edit().putString(KEY_JWT_REFRESH, value).apply()
 
+    var themeMode: String
+        get() = prefs.getString(KEY_THEME_MODE, THEME_SYSTEM) ?: THEME_SYSTEM
+        set(value) = prefs.edit().putString(KEY_THEME_MODE, value).apply()
+
     val isActivated: Boolean
         get() = prefs.getBoolean(KEY_FREE_ACTIVATED, false)
 
@@ -97,6 +101,11 @@ class HaioPrefs(context: Context) {
     }
 
     companion object {
+        const val THEME_SYSTEM = "system"
+        const val THEME_LIGHT = "light"
+        const val THEME_DARK = "dark"
+
+        private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_DEVICE_ID = "device_id"
         private const val KEY_USER_ID = "user_id"
         private const val KEY_TROJAN_CONFIG_URL = "trojan_config_url"

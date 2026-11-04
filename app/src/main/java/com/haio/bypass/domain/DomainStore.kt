@@ -18,7 +18,7 @@ import kotlinx.serialization.json.Json
  * Keeping them separate means a remote refresh can never delete user choices.
  * The effective tunnel list is (downloaded + custom) - excluded.
  */
-class DomainStore(context: Context) {
+class DomainStore private constructor(context: Context) {
 
     private val prefs: SharedPreferences =
         context.getSharedPreferences("haio_domains", Context.MODE_PRIVATE)
@@ -109,6 +109,16 @@ class DomainStore(context: Context) {
     fun excludeDomain(domain: String) {
         val normalized = normalizeDomain(domain) ?: return
         if (excludedSet.contains(normalized)) return
+
+        // Keep user-created direct domains in the custom list too. They stay
+        // out of the effective tunnel list via excludedSet, but this gives the
+        // UI a stable delete action and lets "include" move them to the tunnel.
+        if (!downloadedDomains.contains(normalized) && !customDomainsList.contains(normalized)) {
+            customDomainsList = (customDomainsList + normalized).sorted()
+            persistList(KEY_CUSTOM_DOMAINS, customDomainsList)
+            _customDomains.value = customDomainsList
+        }
+
         excludedSet = excludedSet + normalized
         persistList(KEY_EXCLUDED_DOMAINS, excludedSet.toList())
         _excludedDomains.value = excludedSet.sorted()
@@ -180,6 +190,19 @@ class DomainStore(context: Context) {
     }
 
     companion object {
+        @Volatile
+        private var instance: DomainStore? = null
+
+        /**
+         * The UI and the VPN service run in the same process, so they must share
+         * one store. Otherwise a bypass-list change in the UI never reaches the
+         * routing config used by the running service.
+         */
+        fun getInstance(context: Context): DomainStore =
+            instance ?: synchronized(this) {
+                instance ?: DomainStore(context.applicationContext).also { instance = it }
+            }
+
         private const val KEY_LEGACY_DOMAINS = "cached_domains"
         private const val KEY_DOWNLOADED_DOMAINS = "downloaded_domains"
         private const val KEY_CUSTOM_DOMAINS = "custom_domains"

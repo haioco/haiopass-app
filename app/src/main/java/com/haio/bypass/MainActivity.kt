@@ -9,6 +9,7 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.*
 import androidx.core.content.ContextCompat
 // import com.haio.bypass.billing.BazaarPayHelper
@@ -86,11 +87,19 @@ class MainActivity : ComponentActivity() {
         bazaarHelper?.connect()
         */
 
-        val domainStore = DomainStore(applicationContext)
+        val domainStore = DomainStore.getInstance(applicationContext)
         val domainFetcher = DomainFetcher(applicationContext)
 
         setContent {
-            HaioBypassTheme {
+            var themeMode by remember { mutableStateOf(prefs.themeMode) }
+            val systemDark = isSystemInDarkTheme()
+            val darkTheme = when (themeMode) {
+                HaioPrefs.THEME_LIGHT -> false
+                HaioPrefs.THEME_DARK -> true
+                else -> systemDark
+            }
+
+            HaioBypassTheme(darkTheme = darkTheme) {
                 var showSplash by remember { mutableStateOf(true) }
                 var showApp by remember { mutableStateOf(false) }
                 val snackbarMessage = remember { snackbarMsg }
@@ -149,7 +158,12 @@ class MainActivity : ComponentActivity() {
                             requestVpnPermission(callback)
                         },
                         externalSnackMessage = snackbarMessage,
-                        purchaseRefreshTrigger = refreshTrigger
+                        purchaseRefreshTrigger = refreshTrigger,
+                        themeMode = themeMode,
+                        onThemeModeChange = { mode ->
+                            prefs.themeMode = mode
+                            themeMode = mode
+                        }
                     )
                 }
             }

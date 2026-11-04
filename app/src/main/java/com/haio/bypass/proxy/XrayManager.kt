@@ -34,7 +34,27 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
 
     suspend fun start(configJson: String, socksPort: Int = currentSocksPort): Boolean {
         stop()
+        return startXray(configJson, socksPort, manageWatchdog = true)
+    }
 
+    /**
+     * Restarts only Xray and keeps tun2socks/the TUN interface alive. This is
+     * used to apply a new routing config (for example a bypass-list change)
+     * without dropping the user's VPN connection.
+     */
+    suspend fun reload(configJson: String, socksPort: Int = currentSocksPort): Boolean {
+        if (tun2SocksProcess == null) {
+            return start(configJson, socksPort)
+        }
+        stopXrayOnly()
+        return startXray(configJson, socksPort, manageWatchdog = true)
+    }
+
+    private suspend fun startXray(
+        configJson: String,
+        socksPort: Int,
+        manageWatchdog: Boolean
+    ): Boolean {
         currentSocksPort = socksPort
         intentionalStop = false
         configFile.writeText(configJson)
@@ -64,13 +84,14 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
             pb.directory(workDir)
             pb.redirectErrorStream(true)
 
-            xrayProcess = pb.start()
-            protectProcessSockets(xrayProcess!!)
+            val process = pb.start()
+            xrayProcess = process
+            protectProcessSockets(process)
             Log.i(TAG, "xray socket protection started")
 
             scope.launch {
                 try {
-                    val reader = BufferedReader(InputStreamReader(xrayProcess!!.inputStream))
+                    val reader = BufferedReader(InputStreamReader(process.inputStream))
                     reader.forEachLine { line ->
                         Log.d(TAG, "[xray] $line")
                     }
@@ -85,33 +106,40 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
             if (!ready || !isXrayRunning()) {
                 val exitCode = try { xrayProcess?.exitValue() } catch (_: Exception) { -1 }
                 Log.e(TAG, "xray exited with code $exitCode")
-                xrayProcess = null
+                killXrayProcessOnly()
                 return false
             }
 
-            startWatchdog()
+            if (manageWatchdog) startWatchdog()
             Log.i(TAG, "xray started successfully")
             true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start xray", e)
-            stop()
+            killXrayProcessOnly()
             false
         }
     }
 
-    fun stop() {
+    private fun killXrayProcessOnly() {
+        killProcess(xrayProcess)
+        xrayProcess = null
+        xrayPid = null
+    }
+
+    private fun stopXrayOnly() {
         intentionalStop = true
         watchdogJob?.cancel()
         watchdogJob = null
         protectionJob?.cancel()
         protectionJob = null
+        killXrayProcessOnly()
+        Log.i(TAG, "xray stopped")
+    }
 
-        killProcess(xrayProcess)
-        xrayProcess = null
+    fun stop() {
+        stopXrayOnly()
         killProcess(tun2SocksProcess)
         tun2SocksProcess = null
-
-        xrayPid = null
         tun2SocksPid = null
         Log.i(TAG, "xray and tun2socks stopped")
     }
@@ -179,7 +207,10 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
                     delay(1000)
                     if (!intentionalStop) {
                         val config = configFile.readText()
-                        start(config, currentSocksPort)
+                        // Restart Xray in place. Calling start() here would stop
+                        // tun2socks and cancel this watchdog job from inside
+                        // itself, leaving the VPN dead after a single crash.
+                        startXray(config, currentSocksPort, manageWatchdog = false)
                     }
                 }
             }

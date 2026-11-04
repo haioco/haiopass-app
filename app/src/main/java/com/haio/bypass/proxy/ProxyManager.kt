@@ -11,6 +11,10 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.drop
 
 class ProxyManager(
     private val context: Context,
@@ -24,16 +28,18 @@ class ProxyManager(
     private val xrayManager = XrayManager(context, vpnService)
     private val configGenerator = XrayConfigGenerator()
     private var refreshJob: Job? = null
+    private var configReloadJob: Job? = null
+    private var activeTrojanConfig: TrojanConfig? = null
+    private var lastAppliedConfig: String? = null
 
     suspend fun start(tunFd: Int, trojanConfig: TrojanConfig) {
         _proxyState.value = ProxyState.CONNECTING
-        _statusMessage.value = "Starting cloud router..."
+        _statusMessage.value = "در حال اتصال به روتر ابری..."
+        activeTrojanConfig = trojanConfig
 
+        var healthJob: Deferred<Boolean>? = null
         try {
-            // Never block the first connection on a remote HTTP fetch. The
-            // cached list is already persisted locally; a background refresh
-            // updates it for the next connection without delaying startup.
-            _statusMessage.value = "Starting xray..."
+            _statusMessage.value = "در حال راه‌اندازی روتر ابری..."
 
             val socksPort = configManager.getConfig().socksPort
             val configJson = configGenerator.generateConfig(
@@ -43,34 +49,49 @@ class ProxyManager(
                 directDomains = domainStore.getExcludedDomains()
             )
 
+            // Probe the real server while Xray is starting so the health check
+            // does not add another sequential delay to connection setup.
+            healthJob = scope.async { TunnelHealthChecker.check(trojanConfig) }
+
             val xrayStarted = xrayManager.start(configJson, socksPort)
             if (!xrayStarted) {
-                _proxyState.value = ProxyState.DISCONNECTED
-                _statusMessage.value = "Failed to start xray"
                 throw ProxyStartException("xray failed to start")
             }
 
-            _statusMessage.value = "Starting tun2socks..."
+            _statusMessage.value = "در حال اتصال تونل..."
             val tun2socksStarted = xrayManager.startTun2Socks(tunFd, socksPort)
             if (!tun2socksStarted) {
-                _proxyState.value = ProxyState.DISCONNECTED
-                _statusMessage.value = "Failed to start tun2socks"
                 throw ProxyStartException("tun2socks failed to start")
             }
 
+            _statusMessage.value = "در حال بررسی اتصال..."
+            if (!healthJob.await()) {
+                throw ProxyStartException("health check failed")
+            }
+
+            lastAppliedConfig = configJson
             _proxyState.value = ProxyState.CONNECTED
-            _statusMessage.value = "Connected - ${domainStore.getDomainCount()} domains"
+            _statusMessage.value = connectedMessage()
 
             configManager.updateConfig { it.copy(enabled = true) }
 
             startPeriodicRefresh()
-        } catch (e: ProxyStartException) {
-            _proxyState.value = ProxyState.DISCONNECTED
-            _statusMessage.value = e.message ?: "Connection failed"
+            startConfigObserver()
+        } catch (e: CancellationException) {
+            healthJob?.cancel()
+            stop()
             throw e
         } catch (e: Exception) {
+            healthJob?.cancel()
+            stop()
             _proxyState.value = ProxyState.DISCONNECTED
-            _statusMessage.value = "Connection failed: ${e.message}"
+            _statusMessage.value = when {
+                e.message?.contains("health", ignoreCase = true) == true ->
+                    "سرور روتر ابری در دسترس نیست"
+                e.message?.contains("tun2socks", ignoreCase = true) == true ->
+                    "راه‌اندازی تونل ناموفق بود"
+                else -> "اتصال به روتر ابری برقرار نشد"
+            }
             throw ProxyStartException(e.message ?: "unknown error")
         }
     }
@@ -78,15 +99,19 @@ class ProxyManager(
     fun stop() {
         refreshJob?.cancel()
         refreshJob = null
+        configReloadJob?.cancel()
+        configReloadJob = null
 
         try {
             xrayManager.stop()
         } catch (e: Exception) {
-            Log.e("ProxyManager", "Error stopping xray", e)
+            Log.e(TAG, "Error stopping xray", e)
         }
 
+        activeTrojanConfig = null
+        lastAppliedConfig = null
         _proxyState.value = ProxyState.DISCONNECTED
-        _statusMessage.value = "Disconnected"
+        _statusMessage.value = "قطع شد"
 
         configManager.updateConfig { it.copy(enabled = false) }
     }
@@ -94,10 +119,68 @@ class ProxyManager(
     fun refreshDomains(scope: CoroutineScope) {
         scope.launch {
             val domains = domainFetcher.fetch()
-            domainStore.setDomains(domains)
-            _statusMessage.value = "Connected - ${domainStore.getDomainCount()} domains"
+            if (domains.isNotEmpty()) {
+                domainStore.setDomains(domains)
+                if (_proxyState.value == ProxyState.CONNECTED) {
+                    _statusMessage.value = connectedMessage()
+                }
+            }
         }
     }
+
+    /**
+     * Applies bypass-list changes to a running tunnel by restarting only
+     * Xray. tun2socks and the TUN interface stay up, so the user does not see
+     * a disconnect and domain changes apply immediately.
+     */
+    private fun startConfigObserver() {
+        configReloadJob?.cancel()
+        configReloadJob = scope.launch {
+            combine(
+                domainStore.domains,
+                domainStore.excludedDomains
+            ) { domains, excluded -> domains to excluded }
+                .drop(1)
+                .conflate()
+                .collect { (domains, excluded) ->
+                    // Coalesce bursts of edits before touching the process.
+                    delay(CONFIG_RELOAD_DEBOUNCE_MS)
+
+                    val routingConfig = activeTrojanConfig ?: return@collect
+                    val socksPort = configManager.getConfig().socksPort
+                    val newConfig = configGenerator.generateConfig(
+                        socksPort = socksPort,
+                        trojanConfig = routingConfig,
+                        bypassDomains = domains,
+                        directDomains = excluded
+                    )
+                    if (newConfig == lastAppliedConfig) return@collect
+
+                    val previousConfig = lastAppliedConfig
+                    _statusMessage.value = "در حال به‌روزرسانی مسیرها..."
+                    val applied = xrayManager.reload(newConfig, socksPort)
+
+                    if (applied) {
+                        lastAppliedConfig = newConfig
+                        _statusMessage.value = connectedMessage()
+                    } else {
+                        Log.e(TAG, "Failed to apply routing config, rolling back")
+                        val rolledBack = previousConfig != null &&
+                                xrayManager.reload(previousConfig, socksPort)
+                        if (rolledBack) {
+                            _statusMessage.value = connectedMessage()
+                        } else {
+                            xrayManager.stop()
+                            _proxyState.value = ProxyState.DISCONNECTED
+                            _statusMessage.value = "خطا در اعمال تغییرات مسیر"
+                        }
+                    }
+                }
+        }
+    }
+
+    private fun connectedMessage(): String =
+        "متصل • ${domainStore.getDomainCount()} دامنه"
 
     private fun startPeriodicRefresh() {
         refreshJob?.cancel()
@@ -110,7 +193,9 @@ class ProxyManager(
                 val domains = domainFetcher.fetch()
                 if (domains.isNotEmpty()) {
                     domainStore.setDomains(domains)
-                    _statusMessage.value = "Connected - ${domainStore.getDomainCount()} domains"
+                    if (_proxyState.value == ProxyState.CONNECTED) {
+                        _statusMessage.value = connectedMessage()
+                    }
                 }
                 delay(REFRESH_INTERVAL)
             }
@@ -131,7 +216,9 @@ class ProxyManager(
     class ProxyStartException(message: String) : Exception(message)
 
     companion object {
+        private const val TAG = "ProxyManager"
         private const val INITIAL_REFRESH_DELAY = 3_000L
+        private const val CONFIG_RELOAD_DEBOUNCE_MS = 350L
         private val REFRESH_INTERVAL = 60 * 60 * 1000L
 
         private val _proxyState = MutableStateFlow(ProxyState.DISCONNECTED)

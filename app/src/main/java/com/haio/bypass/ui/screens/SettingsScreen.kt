@@ -19,13 +19,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.haio.bypass.HaioPrefs
 import com.haio.bypass.config.ConfigManager
 import com.haio.bypass.ui.theme.*
 
 @Composable
 fun SettingsScreen(
     configManager: ConfigManager,
-    onClearConfig: () -> Unit
+    onClearConfig: () -> Unit,
+    themeMode: String = HaioPrefs.THEME_SYSTEM,
+    onThemeModeChange: (String) -> Unit = {}
 ) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         val config by configManager.config.collectAsState()
@@ -93,6 +96,40 @@ fun SettingsScreen(
                         )
                     }
                 )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            SettingsSection(
+                icon = Icons.Default.Palette,
+                title = "تم"
+            ) {
+                Text(
+                    text = "روشن، تیره یا هماهنگ با سیستم",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ThemeChip(
+                        label = "سیستم",
+                        selected = themeMode == HaioPrefs.THEME_SYSTEM,
+                        onClick = { onThemeModeChange(HaioPrefs.THEME_SYSTEM) }
+                    )
+                    ThemeChip(
+                        label = "روشن",
+                        selected = themeMode == HaioPrefs.THEME_LIGHT,
+                        onClick = { onThemeModeChange(HaioPrefs.THEME_LIGHT) }
+                    )
+                    ThemeChip(
+                        label = "تیره",
+                        selected = themeMode == HaioPrefs.THEME_DARK,
+                        onClick = { onThemeModeChange(HaioPrefs.THEME_DARK) }
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -356,4 +393,23 @@ private fun SettingsInfoRow(
             color = MaterialTheme.colorScheme.onSurface
         )
     }
+}
+
+@Composable
+private fun ThemeChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = {
+            Text(
+                text = label,
+                fontSize = 12.sp,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+            )
+        }
+    )
 }

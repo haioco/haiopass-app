@@ -43,7 +43,7 @@ class HaioVpnService : VpnService() {
         }
 
         val configManager = ConfigManager(applicationContext)
-        val domainStore = DomainStore(applicationContext)
+        val domainStore = DomainStore.getInstance(applicationContext)
 
         val trojanConfig = configManager.getConfig().trojanConfig
         if (trojanConfig == null) {

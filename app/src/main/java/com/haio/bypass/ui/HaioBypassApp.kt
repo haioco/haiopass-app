@@ -49,7 +49,7 @@ import kotlinx.coroutines.launch
 
 sealed class Screen(val route: String, val title: String) {
     data object Main : Screen("main", "خانه")
-    data object Domains : Screen("domains", "دامنه‌ها")
+    data object Domains : Screen("domains", "عبور مستقیم")
     data object Store : Screen("store", "فروشگاه")
     data object Settings : Screen("settings", "تنظیمات")
     data object Config : Screen("config", "تنظیمات روتر ابری")
@@ -61,12 +61,14 @@ fun HaioBypassApp(
     prefs: HaioPrefs,
     requestVpnPermission: (onResult: (Boolean) -> Unit) -> Unit,
     externalSnackMessage: StateFlow<String?>,
-    purchaseRefreshTrigger: Int = 0
+    purchaseRefreshTrigger: Int = 0,
+    themeMode: String = HaioPrefs.THEME_SYSTEM,
+    onThemeModeChange: (String) -> Unit = {}
 ) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         val context = LocalContext.current
         val configManager = remember { ConfigManager(context) }
-        val domainStore = remember { DomainStore(context) }
+        val domainStore = remember { DomainStore.getInstance(context) }
         val scope = rememberCoroutineScope()
         val navController = rememberNavController()
 
@@ -246,7 +248,7 @@ fun HaioBypassApp(
                         val items = listOf(
                             Triple(Screen.Main, Icons.Default.Home, "خانه"),
                             Triple(Screen.Store, Icons.Default.ShoppingCart, "فروشگاه"),
-                            Triple(Screen.Domains, Icons.Default.Language, "دامنه\u200Cها"),
+                            Triple(Screen.Domains, Icons.Default.Language, "عبور مستقیم"),
                             Triple(Screen.Settings, Icons.Default.Settings, "تنظیمات")
                         )
 
@@ -426,7 +428,9 @@ fun HaioBypassApp(
                         configManager = configManager,
                         onClearConfig = {
                             configManager.clear()
-                        }
+                        },
+                        themeMode = themeMode,
+                        onThemeModeChange = onThemeModeChange
                     )
                 }
             }
