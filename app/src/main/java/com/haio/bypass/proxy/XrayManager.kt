@@ -274,7 +274,7 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
                 tun2socks.absolutePath,
                 "--device", "fd://3",
                 "--proxy", "socks5://127.0.0.1:$socksPort",
-                "--mtu", "1500"
+                "--mtu", "1420"
             )
             Log.i(TAG, "Starting tun2socks via wrapper: ${command.joinToString(" ")}")
 

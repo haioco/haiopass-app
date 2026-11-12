@@ -126,7 +126,7 @@ class HaioVpnService : VpnService() {
         return try {
             Builder()
                 .setSession("HaioBypass")
-                .setMtu(1500)
+                .setMtu(1420)
                 .addAddress("172.19.0.1", 30)
                 .addRoute("0.0.0.0", 0)
                 .addDnsServer("8.8.8.8")
