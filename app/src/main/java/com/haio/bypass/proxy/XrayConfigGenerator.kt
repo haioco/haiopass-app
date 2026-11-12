@@ -131,7 +131,11 @@ class XrayConfigGenerator {
             })
 
             put("routing", buildJsonObject {
-                put("domainStrategy", JsonPrimitive("IPIfNonMatch"))
+                // AsIs: never resolve destinations just to evaluate IP rules.
+                // Every rule that needs an IP (FakeDNS pool, udp.txt allow
+                // list) already receives one from tun2socks; IPIfNonMatch added
+                // a DNS lookup to every non-whitelisted connection.
+                put("domainStrategy", JsonPrimitive("AsIs"))
                 put("rules", buildJsonArray {
                     // 1) Hijack app plain-DNS queries into the dns module (FakeDNS).
                     add(buildJsonObject {
