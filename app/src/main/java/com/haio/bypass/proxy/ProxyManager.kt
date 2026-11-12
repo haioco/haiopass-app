@@ -46,7 +46,14 @@ class ProxyManager(
                 socksPort = socksPort,
                 trojanConfig = trojanConfig,
                 bypassDomains = domainStore.getDomains(),
-                directDomains = domainStore.getExcludedDomains()
+                directDomains = domainStore.getExcludedDomains(),
+                udpAllow = domainStore.getUdpAllow()
+            )
+            Log.i(
+                TAG,
+                "routing config: ${domainStore.getDomainCount()} domains, " +
+                    "${domainStore.getExcludedDomains().size} direct, " +
+                    "${domainStore.getUdpAllow().size} udp allow entries"
             )
 
             // Probe the real server while Xray is starting so the health check
@@ -125,6 +132,10 @@ class ProxyManager(
                     _statusMessage.value = connectedMessage()
                 }
             }
+            val udpAllow = domainFetcher.fetchUdpAllow()
+            if (udpAllow.isNotEmpty()) {
+                domainStore.setUdpAllow(udpAllow)
+            }
         }
     }
 
@@ -138,11 +149,12 @@ class ProxyManager(
         configReloadJob = scope.launch {
             combine(
                 domainStore.domains,
-                domainStore.excludedDomains
-            ) { domains, excluded -> domains to excluded }
+                domainStore.excludedDomains,
+                domainStore.udpAllow
+            ) { domains, excluded, udpAllow -> Triple(domains, excluded, udpAllow) }
                 .drop(1)
                 .conflate()
-                .collect { (domains, excluded) ->
+                .collect { (domains, excluded, udpAllow) ->
                     // Coalesce bursts of edits before touching the process.
                     delay(CONFIG_RELOAD_DEBOUNCE_MS)
 
@@ -152,7 +164,8 @@ class ProxyManager(
                         socksPort = socksPort,
                         trojanConfig = routingConfig,
                         bypassDomains = domains,
-                        directDomains = excluded
+                        directDomains = excluded,
+                        udpAllow = udpAllow
                     )
                     if (newConfig == lastAppliedConfig) return@collect
 
@@ -196,6 +209,10 @@ class ProxyManager(
                     if (_proxyState.value == ProxyState.CONNECTED) {
                         _statusMessage.value = connectedMessage()
                     }
+                }
+                val udpAllow = domainFetcher.fetchUdpAllow()
+                if (udpAllow.isNotEmpty()) {
+                    domainStore.setUdpAllow(udpAllow)
                 }
                 delay(REFRESH_INTERVAL)
             }

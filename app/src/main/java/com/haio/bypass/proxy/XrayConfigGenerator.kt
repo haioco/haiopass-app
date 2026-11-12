@@ -16,13 +16,15 @@ class XrayConfigGenerator {
         socksPort: Int,
         trojanConfig: TrojanConfig,
         bypassDomains: List<String>,
-        directDomains: List<String> = emptyList()
+        directDomains: List<String> = emptyList(),
+        udpAllow: List<String> = emptyList()
     ): String {
         val directSet = directDomains.toSet()
         val domainRules = bypassDomains
             .filterNot { directSet.contains(it) }
             .map { "domain:$it" }
         val directRules = directDomains.map { "domain:$it" }
+        val udpRules = buildUdpRules(udpAllow)
         val fakeIpPool = "198.18.0.0/15"
 
         val config = buildJsonObject {
@@ -151,6 +153,21 @@ class XrayConfigGenerator {
                             put("outboundTag", JsonPrimitive("direct"))
                         })
                     }
+                    // 2b) Explicit UDP destinations from the allow list. Placed
+                    // above the QUIC block so an entry that allows UDP/443 wins,
+                    // and above the catch-all so listed IP:port pairs are
+                    // tunnelled even when the app never resolved a hostname.
+                    udpRules.forEach { rule ->
+                        add(buildJsonObject {
+                            put("type", JsonPrimitive("field"))
+                            if (rule.ip != null) {
+                                put("ip", buildJsonArray { add(JsonPrimitive(rule.ip)) })
+                            }
+                            put("port", JsonPrimitive(rule.ports))
+                            put("network", JsonPrimitive("udp"))
+                            put("outboundTag", JsonPrimitive("proxy"))
+                        })
+                    }
                     // 3) Drop QUIC (UDP/443) so apps fall back to TCP/TLS, which
                     // works reliably through the trojan-TCP outbound.
                     add(buildJsonObject {
@@ -186,5 +203,38 @@ class XrayConfigGenerator {
         }
 
         return json.encodeToString(JsonObject.serializer(), config)
+    }
+
+    private data class UdpRule(val ip: String?, val ports: String)
+
+    /**
+     * Parse "host:ports" allow entries into Xray routing pieces:
+     *  - `*:53`                    -> ports only (any destination)
+     *  - `1.2.3.0/24:2000-2010`    -> ip + ports
+     *  - `[2001:db8::/32]:3074`    -> IPv6 ip + ports
+     * Malformed entries are skipped; the server-side policy is the real gate.
+     */
+    private fun buildUdpRules(entries: List<String>): List<UdpRule> {
+        val rules = mutableListOf<UdpRule>()
+        for (entry in entries) {
+            val trimmed = entry.trim()
+            if (trimmed.isEmpty() || trimmed.startsWith("#")) continue
+            val host: String
+            val ports: String
+            if (trimmed.startsWith("[")) {
+                val close = trimmed.indexOf(']')
+                if (close <= 1 || close + 1 >= trimmed.length || trimmed[close + 1] != ':') continue
+                host = trimmed.substring(1, close)
+                ports = trimmed.substring(close + 2)
+            } else {
+                val split = trimmed.lastIndexOf(':')
+                if (split <= 0 || split == trimmed.length - 1) continue
+                host = trimmed.substring(0, split)
+                ports = trimmed.substring(split + 1)
+            }
+            if (ports.isBlank()) continue
+            rules.add(UdpRule(if (host == "*") null else host, ports))
+        }
+        return rules
     }
 }

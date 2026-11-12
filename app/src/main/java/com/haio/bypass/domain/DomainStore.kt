@@ -40,6 +40,14 @@ class DomainStore private constructor(context: Context) {
     private val _customDomains = MutableStateFlow<List<String>>(emptyList())
     val customDomains: StateFlow<List<String>> = _customDomains.asStateFlow()
 
+    /**
+     * UDP destinations routed through the tunnel ("host:ports" entries).
+     * Downloaded from udp.txt; empty means "nothing extra", the generator
+     * always keeps DNS (`*:53`) on the tunnel.
+     */
+    private val _udpAllow = MutableStateFlow<List<String>>(emptyList())
+    val udpAllow: StateFlow<List<String>> = _udpAllow.asStateFlow()
+
     private var downloadedDomains: List<String> = emptyList()
     private var excludedSet: Set<String> = emptySet()
     private var customDomainsList: List<String> = emptyList()
@@ -51,7 +59,20 @@ class DomainStore private constructor(context: Context) {
         excludedSet = loadList(KEY_EXCLUDED_DOMAINS).orEmpty().toSet()
         rebuild()
         _lastFetchTime.value = prefs.getLong(KEY_LAST_FETCH, 0)
+        _udpAllow.value = loadList(KEY_UDP_ALLOW).orEmpty()
     }
+
+    /** Replace the downloaded UDP allow list (kept across restarts). */
+    fun setUdpAllow(entries: List<String>) {
+        val normalized = entries
+            .map { it.trim() }
+            .filter { it.isNotEmpty() && !it.startsWith("#") && it.contains(":") && !it.any { ch -> ch.isWhitespace() } }
+            .distinct()
+        _udpAllow.value = normalized
+        persistList(KEY_UDP_ALLOW, normalized)
+    }
+
+    fun getUdpAllow(): List<String> = _udpAllow.value
 
     /** Replace the downloaded list without touching user-managed entries. */
     fun setDomains(domains: List<String>) {
@@ -207,6 +228,7 @@ class DomainStore private constructor(context: Context) {
         private const val KEY_DOWNLOADED_DOMAINS = "downloaded_domains"
         private const val KEY_CUSTOM_DOMAINS = "custom_domains"
         private const val KEY_EXCLUDED_DOMAINS = "excluded_domains"
+        private const val KEY_UDP_ALLOW = "udp_allow"
         private const val KEY_LAST_FETCH = "last_fetch_time"
     }
 }
