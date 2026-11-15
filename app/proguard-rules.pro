@@ -40,6 +40,14 @@
 -keep class com.haio.bypass.network.api.** { *; }
 -keepclassmembers class com.haio.bypass.network.api.** { *; }
 
+# HaioCloud portal client (Retrofit + Gson DTOs)
+-keep class com.haio.bypass.network.haiocloud.** { *; }
+-keepclassmembers class com.haio.bypass.network.haiocloud.** { *; }
+-keep class com.haio.bypass.BuildConfig { *; }
+-dontwarn org.conscrypt.**
+-dontwarn org.bouncycastle.**
+-dontwarn org.openjsse.**
+
 # Kotlinx serialization
 -keepattributes *Annotation*, InnerClasses
 -dontnote kotlinx.serialization.AnnotationsKt

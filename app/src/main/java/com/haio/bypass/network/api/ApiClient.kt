@@ -1,5 +1,6 @@
 package com.haio.bypass.network.api
 
+import com.haio.bypass.BuildConfig
 import com.haio.bypass.HaioPrefs
 import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
@@ -30,7 +31,12 @@ object ApiClient {
     }
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
-        level = HttpLoggingInterceptor.Level.BODY
+        // Never log request/response bodies in release builds: they carry JWTs.
+        level = if (BuildConfig.DEBUG) {
+            HttpLoggingInterceptor.Level.BODY
+        } else {
+            HttpLoggingInterceptor.Level.NONE
+        }
     }
 
     private val okHttpClient: OkHttpClient by lazy {

@@ -89,6 +89,30 @@ class HaioPrefs(context: Context) {
         get() = prefs.getString(KEY_THEME_MODE, THEME_SYSTEM) ?: THEME_SYSTEM
         set(value) = prefs.edit().putString(KEY_THEME_MODE, value).apply()
 
+    /**
+     * Which flow produced the active VPN config: manual/guest paste, the legacy
+     * store, or HaioGate. Used to stop the legacy 30s refresh from overwriting a
+     * HaioGate config.
+     */
+    var activeConfigSource: String
+        get() = prefs.getString(KEY_ACTIVE_CONFIG_SOURCE, SOURCE_MANUAL) ?: SOURCE_MANUAL
+        set(value) = prefs.edit().putString(KEY_ACTIVE_CONFIG_SOURCE, value).apply()
+
+    var haiogateAccountId: String?
+        get() = prefs.getString(KEY_HAIOGATE_ACCOUNT_ID, null)
+        set(value) = prefs.edit().putString(KEY_HAIOGATE_ACCOUNT_ID, value).apply()
+
+    /** First-launch welcome was answered; do not show it again. */
+    val welcomeSeen: Boolean
+        get() = prefs.getBoolean(KEY_WELCOME_SEEN, false)
+
+    fun markWelcomeSeen() {
+        prefs.edit().putBoolean(KEY_WELCOME_SEEN, true).apply()
+    }
+
+    val isHaioGateConfigActive: Boolean
+        get() = activeConfigSource == SOURCE_HAIOGATE
+
     val isActivated: Boolean
         get() = prefs.getBoolean(KEY_FREE_ACTIVATED, false)
 
@@ -105,9 +129,16 @@ class HaioPrefs(context: Context) {
         const val THEME_LIGHT = "light"
         const val THEME_DARK = "dark"
 
+        const val SOURCE_MANUAL = "MANUAL"
+        const val SOURCE_LEGACY = "LEGACY"
+        const val SOURCE_HAIOGATE = "HAIOGATE"
+
         private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_DEVICE_ID = "device_id"
         private const val KEY_USER_ID = "user_id"
+        private const val KEY_ACTIVE_CONFIG_SOURCE = "active_config_source"
+        private const val KEY_HAIOGATE_ACCOUNT_ID = "haiogate_account_id"
+        private const val KEY_WELCOME_SEEN = "welcome_seen"
         private const val KEY_TROJAN_CONFIG_URL = "trojan_config_url"
         private const val KEY_JWT_ACCESS = "jwt_access_token"
         private const val KEY_JWT_REFRESH = "jwt_refresh_token"

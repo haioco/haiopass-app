@@ -389,6 +389,9 @@ private suspend fun handlePurchase(
                     configManager.updateConfig {
                         it.copy(trojanUrl = configUrl, trojanConfig = parsed)
                     }
+                    // The legacy purchase is now the active config source.
+                    prefs.activeConfigSource = HaioPrefs.SOURCE_LEGACY
+                    prefs.haiogateAccountId = null
                 }
             }
             onShowSnackbar("اشتراک ${plan.name} فعال شد!")

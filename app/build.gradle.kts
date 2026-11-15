@@ -14,8 +14,8 @@ android {
         applicationId = "com.haio.bypass"
         minSdk = 26
         targetSdk = 34
-        versionCode = 11
-        versionName = "2.0.1"
+        versionCode = 12
+        versionName = "3.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -24,6 +24,12 @@ android {
         ndk {
             abiFilters += "arm64-v8a"
         }
+
+        buildConfigField(
+            "String",
+            "HAIO_PORTAL_BASE_URL",
+            "\"https://portal.haio.ir/api/v1/\""
+        )
     }
 
     signingConfigs {
@@ -61,7 +67,7 @@ android {
 
     buildFeatures {
         compose = true
-        buildConfig = false
+        buildConfig = true
     }
 
     composeOptions {
@@ -95,8 +101,13 @@ dependencies {
     implementation(libs.retrofit.gson)
     implementation(libs.kotlinx.coroutines)
     implementation(libs.kotlinx.serialization)
+    implementation(libs.androidx.browser)
+    implementation(libs.androidx.security.crypto)
     implementation("com.google.android.material:material:1.11.0")
     // implementation("com.github.cafebazaar.Poolakey:poolakey:2.2.0")
+
+    testImplementation(libs.junit)
+    testImplementation(libs.okhttp.mockwebserver)
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

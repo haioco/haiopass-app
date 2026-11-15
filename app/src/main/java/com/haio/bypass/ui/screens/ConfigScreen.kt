@@ -18,10 +18,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.haio.bypass.R
 import com.haio.bypass.config.ConfigManager
 import com.haio.bypass.config.TrojanUrlParser
 import com.haio.bypass.ui.theme.*
@@ -30,7 +32,9 @@ import com.haio.bypass.ui.theme.*
 @Composable
 fun ConfigScreen(
     configManager: ConfigManager,
-    onSave: () -> Unit
+    onSave: () -> Unit,
+    onShowSnackbar: (String) -> Unit = {},
+    onConfigApplied: () -> Unit = {}
 ) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         val config by configManager.config.collectAsState()
@@ -39,7 +43,9 @@ fun ConfigScreen(
         var errorMessage by remember { mutableStateOf("") }
         var saved by remember { mutableStateOf(false) }
         var isEmpty by remember { mutableStateOf(trojanUrl.isBlank()) }
+        var revealPassword by remember { mutableStateOf(false) }
         val clipboardManager = LocalClipboardManager.current
+        val copiedMessage = stringResource(R.string.config_copied)
 
         Column(
             modifier = Modifier
@@ -71,7 +77,16 @@ fun ConfigScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = stringResource(R.string.config_guest_subtitle) + " " +
+                    "می‌توانید لینک را از مدیر حساب یا پنل هایو بگیرید.",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             Card(
                 modifier = Modifier
@@ -171,6 +186,8 @@ fun ConfigScreen(
                                             trojanConfig = parsed
                                         )
                                     }
+                                    // A pasted link is a manual/guest config.
+                                    onConfigApplied()
                                     saved = true
                                     showError = false
                                     onSave()
@@ -273,7 +290,77 @@ fun ConfigScreen(
                             modifier = Modifier.padding(vertical = 6.dp),
                             color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
                         )
-                        ConfigDetailRow("رمز", "••••••••", Icons.Default.Lock)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "رمز",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = if (revealPassword) tc.password else "••••••••",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                )
+                                TextButton(onClick = { revealPassword = !revealPassword }) {
+                                    Text(
+                                        text = if (revealPassword) "پنهان" else "نمایش",
+                                        fontSize = 11.sp
+                                    )
+                                }
+                                IconButton(
+                                    onClick = {
+                                        clipboardManager.setText(
+                                            androidx.compose.ui.text.AnnotatedString(tc.password)
+                                        )
+                                        onShowSnackbar("رمز عبور کپی شد.")
+                                    },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.ContentCopy,
+                                        contentDescription = "کپی رمز",
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        OutlinedButton(
+                            onClick = {
+                                clipboardManager.setText(
+                                    androidx.compose.ui.text.AnnotatedString(config.trojanUrl)
+                                )
+                                onShowSnackbar(copiedMessage)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = config.trojanUrl.isNotBlank(),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.ContentCopy,
+                                contentDescription = null,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(stringResource(R.string.config_copy), fontSize = 12.sp)
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = stringResource(R.string.config_copy_warning),
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }

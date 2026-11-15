@@ -28,7 +28,13 @@ fun SettingsScreen(
     configManager: ConfigManager,
     onClearConfig: () -> Unit,
     themeMode: String = HaioPrefs.THEME_SYSTEM,
-    onThemeModeChange: (String) -> Unit = {}
+    onThemeModeChange: (String) -> Unit = {},
+    isLoggedIn: Boolean = false,
+    accountTitle: String? = null,
+    accountSubtitle: String? = null,
+    shahkarVerified: Boolean = false,
+    onAccountClick: () -> Unit = {},
+    onLoginClick: () -> Unit = {}
 ) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         val config by configManager.config.collectAsState()
@@ -149,6 +155,75 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
                 )
                 SettingsInfoRow("محدوده DNS جعلی", "198.18.0.0/15", Icons.Default.Public)
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            SettingsSection(
+                icon = Icons.Default.Person,
+                title = "حساب هایو"
+            ) {
+                if (isLoggedIn) {
+                    Text(
+                        text = accountTitle.orEmpty().ifBlank { "کاربر هایو" },
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = accountSubtitle.orEmpty(),
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Badge,
+                            contentDescription = null,
+                            tint = if (shahkarVerified) StatusGreen else StatusYellow,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = if (shahkarVerified) "شاهکار: تایید شده" else "شاهکار: تایید نشده",
+                            fontSize = 11.sp,
+                            color = if (shahkarVerified) StatusGreen else StatusYellow
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedButton(
+                        onClick = onAccountClick,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("مدیریت حساب", fontSize = 13.sp)
+                    }
+                } else {
+                    Text(
+                        text = "شما در حالت مهمان هستید.",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "برای خرید و مدیریت هایو گیت وارد حساب هایو شوید. " +
+                            "کانفیگ فعلی شما حفظ می‌شود.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Button(
+                        onClick = onLoginClick,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.Login, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("ورود به حساب", fontSize = 13.sp)
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))

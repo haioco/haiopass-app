@@ -24,4 +24,23 @@
     <string name="clear_config">پاک کردن کانفیگ</string>
     <string name="connection_test">تست اتصال</string>
     <string name="last_fetch">آخرین دریافت: %s</string>
+
+    <!-- HaioCloud portal / guest mode -->
+    <string name="welcome_title">به هایو بایپس خوش آمدید</string>
+    <string name="welcome_subtitle">برای استفاده از سرویس، یکی از دو روش را انتخاب کنید.</string>
+    <string name="welcome_login_title">ورود به حساب هایو</string>
+    <string name="welcome_login_subtitle">خرید، تمدید و مدیریت هایو گیت</string>
+    <string name="welcome_guest_title">مهمان — لینک کانفیگ دارم</string>
+    <string name="welcome_guest_subtitle">بدون حساب وارد شوید و لینک اتصال خود را وارد کنید.</string>
+    <string name="welcome_later">بعداً</string>
+    <string name="welcome_guest_free_note">حالت مهمان برای اتصال نیازی به حساب، کد یکبار مصرف یا احراز هویت ندارد.</string>
+    <string name="guest_badge">مهمان</string>
+    <string name="guest_haiogate_title">برای خرید و مدیریت هایو گیت وارد شوید.</string>
+    <string name="guest_haiogate_body">با شماره موبایل وارد شوید یا اگر لینک کانفیگ دارید، از حالت مهمان استفاده کنید.</string>
+    <string name="guest_haiogate_login">ورود به حساب</string>
+    <string name="guest_haiogate_config">مهمان هستم؛ لینک کانفیگ دارم</string>
+    <string name="config_guest_subtitle">اگر لینک اتصال دارید، همین‌جا وارد کنید. نیازی به حساب نیست.</string>
+    <string name="config_copy">کپی لینک اتصال</string>
+    <string name="config_copied">لینک اتصال کپی شد.</string>
+    <string name="config_copy_warning">هر کسی این لینک را داشته باشد می‌تواند تا زمان لغو، به این کانفیگ وصل شود.</string>
 </resources>

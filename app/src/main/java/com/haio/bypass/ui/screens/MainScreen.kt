@@ -51,7 +51,10 @@ fun MainScreen(
     onToggleVpn: (Boolean) -> Unit,
     onRefreshDomains: () -> Unit,
     onConfigureClick: () -> Unit = {},
-    onManageDomainsClick: () -> Unit = {}
+    onManageDomainsClick: () -> Unit = {},
+    configSourceLabel: String? = null,
+    isGuest: Boolean = false,
+    onLoginClick: () -> Unit = {}
 ) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         val isConnecting = statusMessage.contains("اتصال", ignoreCase = true) ||
@@ -246,6 +249,20 @@ fun MainScreen(
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
+                                if (configSourceLabel != null) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                    ) {
+                                        Text(
+                                            text = configSourceLabel,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                            fontSize = 10.sp,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
                             }
 
                             Spacer(modifier = Modifier.height(14.dp))
@@ -294,6 +311,49 @@ fun MainScreen(
                                             fontWeight = FontWeight.Medium
                                         )
                                     }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (isGuest && config.trojanConfig == null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(18.dp)) {
+                            Text(
+                                text = "هنوز کانفیگی روی این دستگاه ندارید.",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "لینک اتصال را وارد کنید یا برای خرید و مدیریت هایو گیت وارد حساب شوید.",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(
+                                    onClick = onConfigureClick,
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Text("افزودن کانفیگ", fontSize = 12.sp)
+                                }
+                                OutlinedButton(
+                                    onClick = onLoginClick,
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Text("ورود و خرید", fontSize = 12.sp)
                                 }
                             }
                         }
