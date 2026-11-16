@@ -2,6 +2,9 @@ name: Upload test APK
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - feat/v2-udp-full-access
 
 permissions:
   contents: write
