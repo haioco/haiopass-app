@@ -86,7 +86,43 @@ fun ConfigScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "اگر لینک دعوت (haio://join/... یا my.haio.ir/join/...) دارید، " +
+                    "از مسیر «مهمان — لینک دعوت دارم» استفاده کنید تا دستگاه شما ثبت شود.",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.primary
+            )
+
             Spacer(modifier = Modifier.height(16.dp))
+
+            if (config.isDeviceLocked) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Text(
+                            text = "این گوشی با گواهی دستگاه ثبت شده است",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "کانفیگ فعال از نوع «قفل دستگاه» است و با هسته sing-box اجرا می‌شود. " +
+                                "برای تغییر دستگاه، از مالک کانفیگ لینک دعوت جدید بگیرید.",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
 
             Card(
                 modifier = Modifier

@@ -1,6 +1,7 @@
 package com.haio.bypass.network.haiocloud
 
 import com.haio.bypass.BuildConfig
+import android.util.Log
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -32,7 +33,16 @@ class PortalClient(
 
     private val refreshMutex = Mutex()
 
-    private val loggingInterceptor = HttpLoggingInterceptor().apply {
+    private val loggingInterceptor = HttpLoggingInterceptor { message ->
+        // Invite links are bearer capabilities: their token is part of the
+        // URL path, so never emit those request lines (even in debug builds).
+        val sensitive = message.contains("/invites/") || message.contains("/join/")
+        if (!sensitive) {
+            // runCatching keeps JVM unit tests (where android.util.Log is not
+            // mocked) from failing the request thread.
+            runCatching { Log.d("PortalHttp", message) }
+        }
+    }.apply {
         level = if (BuildConfig.DEBUG) {
             HttpLoggingInterceptor.Level.BASIC
         } else {

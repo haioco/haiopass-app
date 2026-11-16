@@ -22,6 +22,7 @@ import com.haio.bypass.ui.HaioBypassApp
 import com.haio.bypass.ui.screens.SplashScreen
 import com.haio.bypass.ui.theme.HaioBypassTheme
 import com.haio.bypass.config.ConfigManager
+import com.haio.bypass.config.InviteLinkParser
 // import com.haio.bypass.config.TrojanUrlParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,6 +36,13 @@ class MainActivity : ComponentActivity() {
     private lateinit var prefs: HaioPrefs
     private val snackbarMsg = MutableStateFlow<String?>(null)
     private val purchaseRefreshTrigger = MutableStateFlow(0)
+
+    /**
+     * Token from `haio://join/...` or `https://my.haio.ir/join/...`.
+     * The flow survives the splash: HaioBypassApp consumes it and navigates to
+     * JoinScreen. Never logged.
+     */
+    private val pendingInviteToken = MutableStateFlow<String?>(null)
     // private var bazaarHelper: BazaarPayHelper? = null
 
     private val vpnPermissionLauncher = registerForActivityResult(
@@ -54,6 +62,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = HaioPrefs(applicationContext)
+        handleInviteIntent(intent)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
@@ -163,7 +172,9 @@ class MainActivity : ComponentActivity() {
                         onThemeModeChange = { mode ->
                             prefs.themeMode = mode
                             themeMode = mode
-                        }
+                        },
+                        inviteTokenFlow = pendingInviteToken,
+                        onInviteTokenConsumed = { pendingInviteToken.value = null }
                     )
                 }
             }
@@ -173,6 +184,19 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         // bazaarHelper?.disconnect()
         super.onDestroy()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleInviteIntent(intent)
+    }
+
+    /** Validates scheme/host/token locally; invalid links open the app normally. */
+    private fun handleInviteIntent(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_VIEW) return
+        val token = InviteLinkParser.parse(intent.dataString) ?: return
+        pendingInviteToken.value = token
     }
 
     private fun requestVpnPermission(callback: (Boolean) -> Unit) {

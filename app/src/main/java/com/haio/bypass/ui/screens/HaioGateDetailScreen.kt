@@ -76,7 +76,17 @@ fun HaioGateDetailScreen(
     val factory = remember(container) { PortalViewModelFactory(container) }
     val viewModel: AccountDetailViewModel = viewModel(factory = factory)
     val state by viewModel.state.collectAsState()
+    val detail = state.detail
     var showApplyConfirm by remember { mutableStateOf(false) }
+    var showEnrollConfirm by remember { mutableStateOf(false) }
+    var showResetConfirm by remember { mutableStateOf(false) }
+    val localIdentity = remember(
+        state.detail?.id,
+        state.detail?.deviceBoundAt,
+        state.appliedConfig
+    ) {
+        state.detail?.id?.let { container.deviceIdentity.findForMember(it, null) }
+    }
 
     LaunchedEffect(accountId) { viewModel.load(accountId) }
 
@@ -105,9 +115,7 @@ fun HaioGateDetailScreen(
             Spacer(Modifier.height(10.dp))
         }
 
-        val detail = state.detail
-        if (detail == null) {
-            Box(
+        if (detail == null) {            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 40.dp),
@@ -272,6 +280,61 @@ fun HaioGateDetailScreen(
 
         Spacer(Modifier.height(12.dp))
 
+        if (detail.isDeviceLocked) {
+            PortalSectionTitle("دستگاه ثبت‌شده")
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "این اکانت با گواهی دستگاه محافظت می‌شود؛ رمز قابل استفاده مجدد ندارد.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    if (detail.hasBoundDevice) {
+                        PortalInfoRow("دستگاه", detail.deviceName.orEmpty().ifBlank { "دستگاه" })
+                        detail.devicePlatform?.takeIf { it.isNotBlank() }?.let {
+                            PortalInfoRow("سیستم‌عامل", it)
+                        }
+                        PortalInfoRow("تاریخ ثبت", PortalFormat.date(detail.deviceBoundAt))
+                        PortalInfoRow("انقضای گواهی", PortalFormat.date(detail.deviceCertExpiresAt))
+                    } else {
+                        Text(
+                            text = "هنوز دستگاهی ثبت نشده است. برای اتصال، این گوشی را ثبت کنید.",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = { showEnrollConfirm = true },
+                            enabled = !state.enrollingDevice,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            if (state.enrollingDevice) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(14.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Text("ثبت این دستگاه", fontSize = 12.sp)
+                            }
+                        }
+                        OutlinedButton(
+                            onClick = { showResetConfirm = true },
+                            enabled = detail.hasBoundDevice && !state.deviceBusy,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) { Text("حذف دستگاه", fontSize = 12.sp) }
+                    }
+                }
+            }
+        } else {
         PortalSectionTitle("اطلاعات اتصال")
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -325,6 +388,7 @@ fun HaioGateDetailScreen(
                     )
                 }
             }
+        }
         }
 
         Spacer(Modifier.height(12.dp))
@@ -407,7 +471,9 @@ fun HaioGateDetailScreen(
 
         Button(
             onClick = {
-                if (container.configManager.getConfig().trojanUrl.isNotBlank()) {
+                if (detail.isDeviceLocked && localIdentity == null) {
+                    showEnrollConfirm = true
+                } else if (container.configManager.getConfig().trojanConfig != null) {
                     showApplyConfirm = true
                 } else {
                     viewModel.applyConfig()
@@ -488,6 +554,57 @@ fun HaioGateDetailScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showApplyConfirm = false }) { Text("انصراف") }
+            },
+            shape = RoundedCornerShape(18.dp)
+        )
+    }
+
+    if (showEnrollConfirm) {
+        AlertDialog(
+            onDismissRequest = { showEnrollConfirm = false },
+            title = { Text("ثبت این دستگاه؟") },
+            text = {
+                Text(
+                    if (detail?.hasBoundDevice == true) {
+                        "دستگاه قبلی این اکانت لغو می‌شود و این گوشی جای آن ثبت می‌شود. " +
+                            "دستگاه قبلی در اتصال بعدی مسدود خواهد بود."
+                    } else {
+                        "یک کلید امن روی این گوشی ساخته می‌شود و فقط همین دستگاه می‌تواند " +
+                            "با این اکانت وصل شود."
+                    }
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    showEnrollConfirm = false
+                    viewModel.enrollPrimaryDevice(accountId)
+                }) { Text("ثبت این دستگاه") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEnrollConfirm = false }) { Text("انصراف") }
+            },
+            shape = RoundedCornerShape(18.dp)
+        )
+    }
+
+    if (showResetConfirm) {
+        AlertDialog(
+            onDismissRequest = { showResetConfirm = false },
+            title = { Text("حذف دستگاه؟") },
+            text = {
+                Text(
+                    "با حذف دستگاه، اتصال فعلی قطع نمی‌شود اما اتصال بعدی مسدود است. " +
+                        "سپس این گوشی را دوباره ثبت کنید."
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    showResetConfirm = false
+                    viewModel.resetPrimaryDevice()
+                }) { Text("حذف دستگاه") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetConfirm = false }) { Text("انصراف") }
             },
             shape = RoundedCornerShape(18.dp)
         )

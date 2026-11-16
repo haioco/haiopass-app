@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.Card
@@ -47,6 +48,7 @@ import com.haio.bypass.ui.theme.StatusGreen
 fun WelcomeScreen(
     onLogin: () -> Unit,
     onGuest: () -> Unit,
+    onInvite: () -> Unit,
     onLater: () -> Unit
 ) {
     Column(
@@ -108,6 +110,16 @@ fun WelcomeScreen(
             icon = Icons.Default.Key,
             highlighted = false,
             modifier = Modifier.clickable(onClick = onGuest)
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        WelcomeChoiceCard(
+            title = stringResource(R.string.welcome_invite_title),
+            subtitle = stringResource(R.string.welcome_invite_subtitle),
+            icon = Icons.Default.Link,
+            highlighted = false,
+            modifier = Modifier.clickable(onClick = onInvite)
         )
 
         Spacer(Modifier.height(16.dp))

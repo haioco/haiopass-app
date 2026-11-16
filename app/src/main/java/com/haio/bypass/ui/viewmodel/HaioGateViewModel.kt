@@ -2,6 +2,8 @@ package com.haio.bypass.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.haio.bypass.HaioPrefs
+import com.haio.bypass.config.TrojanUrlParser
 import com.haio.bypass.network.haiocloud.AccountClassifier
 import com.haio.bypass.network.haiocloud.AccountCategory
 import com.haio.bypass.network.haiocloud.HaioGateAccount
@@ -30,7 +32,9 @@ class HaioGateViewModel(private val container: PortalContainer) : ViewModel() {
         val pending: PendingPurchase? = null,
         val pendingStatus: PendingStatus? = null,
         val pendingBusy: Boolean = false,
-        val paymentUrl: String? = null
+        val paymentUrl: String? = null,
+        val activeAccountId: String? = null,
+        val applyingAccountId: String? = null
     ) {
         val activeAccounts: List<HaioGateAccount>
             get() = AccountClassifier.sortForDisplay(
@@ -51,7 +55,15 @@ class HaioGateViewModel(private val container: PortalContainer) : ViewModel() {
             )
     }
 
-    private val _state = MutableStateFlow(UiState())
+    private val _state = MutableStateFlow(
+        UiState(
+            activeAccountId = if (container.prefs.isHaioGateConfigActive) {
+                container.prefs.haiogateAccountId
+            } else {
+                null
+            }
+        )
+    )
     val state: StateFlow<UiState> = _state.asStateFlow()
 
     fun refresh() {
@@ -80,7 +92,12 @@ class HaioGateViewModel(private val container: PortalContainer) : ViewModel() {
                             refreshing = false,
                             accounts = accounts,
                             packages = packages,
-                            error = null
+                            error = null,
+                            activeAccountId = if (container.prefs.isHaioGateConfigActive) {
+                                container.prefs.haiogateAccountId
+                            } else {
+                                null
+                            }
                         )
                     }
                 }
@@ -170,6 +187,81 @@ class HaioGateViewModel(private val container: PortalContainer) : ViewModel() {
                 }
             } catch (throwable: Throwable) {
                 _state.update { it.copy(pendingBusy = false, error = portalMessage(throwable)) }
+            }
+        }
+    }
+
+    /**
+     * Fetches the account's current `trojan_url`, validates it, and makes it
+     * the active connection config. This is the one-tap switch between the
+     * configs a logged-in customer owns.
+     */
+    fun applyConfig(accountId: String) {
+        if (_state.value.applyingAccountId != null) return
+        if (_state.value.activeAccountId == accountId) return
+        _state.update { it.copy(applyingAccountId = accountId, error = null) }
+        viewModelScope.launch {
+            try {
+                val detail = container.haioGate.account(accountId)
+                if (detail.isDeviceLocked) {
+                    val identity = container.deviceIdentity.findForMember(accountId, null)
+                    if (identity == null) {
+                        _state.update {
+                            it.copy(
+                                applyingAccountId = null,
+                                error = "این اکانت نیاز به ثبت دستگاه دارد. از «مدیریت کاربران» دستگاه این گوشی را ثبت کنید."
+                            )
+                        }
+                        return@launch
+                    }
+                    container.deviceKeys.apply(identity)
+                    _state.update {
+                        it.copy(
+                            applyingAccountId = null,
+                            activeAccountId = accountId,
+                            notice = "دستگاه ثبت‌شده «${detail.packageName ?: "هایو گیت"}» فعال شد. برای اتصال دکمه اتصال را بزنید."
+                        )
+                    }
+                    return@launch
+                }
+
+                val url = detail.trojanUrl?.trim().orEmpty()
+                val parsed = url.takeIf { it.isNotEmpty() }?.let { TrojanUrlParser.parse(it) }
+                if (parsed == null) {
+                    _state.update {
+                        it.copy(
+                            applyingAccountId = null,
+                            error = "لینک اتصال این اکانت معتبر نیست. با پشتیبانی تماس بگیرید."
+                        )
+                    }
+                    return@launch
+                }
+                container.configManager.updateConfig {
+                    it.copy(
+                        trojanUrl = url,
+                        trojanConfig = parsed,
+                        core = com.haio.bypass.config.AppConfig.CORE_XRAY,
+                        deviceIdentityId = null
+                    )
+                }
+                container.prefs.activeConfigSource = HaioPrefs.SOURCE_HAIOGATE
+                container.prefs.haiogateAccountId = accountId
+                container.prefs.haiogateMemberId = null
+                container.prefs.deviceFingerprint = null
+                _state.update {
+                    it.copy(
+                        applyingAccountId = null,
+                        activeAccountId = accountId,
+                        notice = "کانفیگ «${detail.packageName ?: "هایو گیت"}» فعال شد. برای اتصال دکمه اتصال را بزنید."
+                    )
+                }
+            } catch (throwable: Throwable) {
+                _state.update {
+                    it.copy(
+                        applyingAccountId = null,
+                        error = portalMessage(throwable)
+                    )
+                }
             }
         }
     }

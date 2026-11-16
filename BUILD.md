@@ -137,3 +137,21 @@ Ensure `com.google.android.material:material` dependency is in `app/build.gradle
 
 ### Build is slow
 First build downloads all dependencies (~200MB). Subsequent builds use Gradle's cache and are much faster (typically 30-40 seconds for incremental builds).
+
+## sing-box core (device-locked HaioGate)
+
+Device-locked HaioGate credentials use sing-box 1.14.4 instead of Xray because
+Xray cannot combine `utls.fingerprint=chrome` with a client certificate.
+
+- Asset: `app/src/main/assets/sing_box_arm64_v8a`
+- SHA-256: `2ce1c1c2a265e7be21ffa7aaf2b58619986629e9caecfc2d3f80ef4d25b7f965`
+- Size: 82,765,688 bytes
+- Source: official `sing-box v1.14.4` android-arm64 release
+  (`sing-box-1.14.4-android-arm64.tar.gz`, archive SHA-256
+  `fb3a6c5197f4044f82c8fd75e01ce14c28b6abdd4c3df84bb987d41a962a320f`).
+- Reproduce: `CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build -tags with_utls`.
+- Runtime: extracted to `codeCacheDir/singbox`, mode 0700, checksum verified on
+  extraction.
+
+See `docs/DEVICE-LOCK-ANDROID.md` for the key store, enrollment and routing
+parity notes.

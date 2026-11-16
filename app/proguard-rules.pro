@@ -43,6 +43,12 @@
 # HaioCloud portal client (Retrofit + Gson DTOs)
 -keep class com.haio.bypass.network.haiocloud.** { *; }
 -keepclassmembers class com.haio.bypass.network.haiocloud.** { *; }
+
+# Device identity records are serialized with Gson (field names are the JSON
+# contract); never obfuscate them.
+-keep class com.haio.bypass.security.** { *; }
+-keepclassmembers class com.haio.bypass.security.** { *; }
+-keep class com.google.zxing.** { *; }
 -keep class com.haio.bypass.BuildConfig { *; }
 -dontwarn org.conscrypt.**
 -dontwarn org.bouncycastle.**

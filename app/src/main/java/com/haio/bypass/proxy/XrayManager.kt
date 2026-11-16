@@ -15,7 +15,7 @@ import java.io.InputStreamReader
 import java.util.concurrent.TimeUnit
 import java.nio.ByteBuffer
 
-class XrayManager(private val context: Context, private val vpnService: VpnService) {
+class XrayManager(private val context: Context, private val vpnService: VpnService) : ProxyCore {
 
     private var xrayProcess: Process? = null
     private var tun2SocksProcess: Process? = null
@@ -32,7 +32,7 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
     }
     private val configFile: File by lazy { File(workDir, "config.json") }
 
-    suspend fun start(configJson: String, socksPort: Int = currentSocksPort): Boolean {
+    override suspend fun start(configJson: String, socksPort: Int): Boolean {
         stop()
         return startXray(configJson, socksPort, manageWatchdog = true)
     }
@@ -42,7 +42,7 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
      * used to apply a new routing config (for example a bypass-list change)
      * without dropping the user's VPN connection.
      */
-    suspend fun reload(configJson: String, socksPort: Int = currentSocksPort): Boolean {
+    override suspend fun reload(configJson: String, socksPort: Int): Boolean {
         if (tun2SocksProcess == null) {
             return start(configJson, socksPort)
         }
@@ -59,9 +59,9 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
         intentionalStop = false
         configFile.writeText(configJson)
         if (Log.isLoggable(TAG, Log.DEBUG)) {
-            // The generated config can be hundreds of KB with a large domain
-            // list; only build this log message when debug logging is enabled.
-            Log.d(TAG, "xray config:\n$configJson")
+            // The generated config contains the trojan password; never dump
+            // it, even in debug builds.
+            Log.d(TAG, "xray config generated (${configJson.length} bytes)")
         }
 
         val binary = extractBinary() ?: run {
@@ -136,7 +136,7 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
         Log.i(TAG, "xray stopped")
     }
 
-    fun stop() {
+    override fun stop() {
         stopXrayOnly()
         killProcess(tun2SocksProcess)
         tun2SocksProcess = null
@@ -166,7 +166,7 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
         }
     }
 
-    fun isRunning(): Boolean {
+    override fun isRunning(): Boolean {
         return isXrayRunning() && (tun2SocksProcess == null || isTun2SocksRunning())
     }
 
@@ -248,7 +248,7 @@ class XrayManager(private val context: Context, private val vpnService: VpnServi
         }
     }
 
-    suspend fun startTun2Socks(tunFd: Int, socksPort: Int): Boolean {
+    override suspend fun startTun2Socks(tunFd: Int, socksPort: Int): Boolean {
         preProtectXraySockets()
 
         val wrapper = extractWrapperBinary() ?: run {

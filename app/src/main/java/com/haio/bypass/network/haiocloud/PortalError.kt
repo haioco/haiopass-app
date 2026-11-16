@@ -26,6 +26,8 @@ sealed class PortalError {
     data class ProviderUnavailable(val detail: String?) : PortalError()
     data class Server(val code: Int, val detail: String?) : PortalError()
     data class Http(val code: Int, val detail: String?) : PortalError()
+    /** Typed device-enrollment / invite error from `{detail, code}`. */
+    data class DeviceEnrollment(val code: String, val detail: String?) : PortalError()
     data class Network(val detail: String?) : PortalError()
     data class Unknown(val detail: String?) : PortalError()
 }
@@ -45,11 +47,83 @@ fun PortalError.userMessage(): String = when (this) {
     is PortalError.ProviderUnavailable -> "سرویس مورد نظر در دسترس نیست. کمی بعد دوباره تلاش کنید."
     is PortalError.Server -> "خطای موقت سرور. دوباره تلاش کنید."
     is PortalError.Http -> detail?.takeIf { it.isNotBlank() } ?: "درخواست انجام نشد."
+    is PortalError.DeviceEnrollment -> enrollmentMessage(this)
     is PortalError.Network -> "اتصال به سرور برقرار نشد. اینترنت خود را بررسی کنید."
     is PortalError.Unknown -> detail?.takeIf { it.isNotBlank() } ?: "خطای نامشخص رخ داد."
 }
 
+/**
+ * Persian copy for device-enrollment/invite errors (§15.3).
+ * Used by JoinScreen, member dialogs and the owner device panel.
+ */
+fun enrollmentMessage(error: PortalError): String = when (error) {
+    is PortalError.DeviceEnrollment -> when (error.code) {
+        "invite_not_found" -> "لینک دعوت پیدا نشد."
+        "invite_expired" ->
+            "این لینک منقضی شده است. از صاحب کانفیگ لینک جدید بگیرید."
+        "invite_used" ->
+            "این لینک قبلاً استفاده شده است. برای دستگاه جدید، از صاحب کانفیگ لینک تازه بگیرید."
+        "invite_revoked" -> "این لینک لغو شده است."
+        "member_revoked" -> "این کاربر حذف شده است."
+        "member_not_found" -> "این کاربر پیدا نشد."
+        "slot_taken", "slots_full" -> "ظرفیت این پلن تکمیل است."
+        "csr_invalid" -> "ساخت کلید امن ناموفق بود؛ دوباره تلاش کنید."
+        "device_already_bound" ->
+            "این کاربر روی دستگاه دیگری ثبت شده است. برای تغییر دستگاه، ابتدا دستگاه فعلی را حذف کنید."
+        "not_manageable" -> "این اکانت برای ثبت دستگاه در دسترس نیست."
+        "ca_unavailable" ->
+            "ثبت دستگاه موقتاً در دسترس نیست؛ بعداً تلاش کنید."
+        "enrollment_disabled" -> "ثبت دستگاه در حال حاضر غیرفعال است."
+        "invalid_request_id" -> "درخواست معتبر نیست؛ دوباره تلاش کنید."
+        "invite_ttl_invalid" -> "مدت اعتبار لینک دعوت معتبر نیست."
+        "legacy_unlimited" -> "این اکانت قدیمی است و از لینک دعوت پشتیبانی نمی‌کند."
+        "proxy_error" -> "اتصال به سرور برقرار نشد. اینترنت را بررسی کنید و دوباره تلاش کنید."
+        else -> error.detail?.takeIf { it.isNotBlank() } ?: "ثبت دستگاه انجام نشد."
+    }
+    is PortalError.Network ->
+        "اتصال به سرور برقرار نشد. اینترنت را بررسی کنید و دوباره تلاش کنید."
+    is PortalError.RateLimited ->
+        "تعداد تلاش‌ها زیاد بود؛ چند دقیقه بعد دوباره تلاش کنید."
+    is PortalError.Unauthorized -> "نشست شما منقضی شده است. دوباره وارد شوید."
+    else -> error.userMessage()
+}
+
+/** Maps any throwable from the invite/enroll calls to Persian copy. */
+fun inviteErrorMessage(throwable: Throwable): String =
+    when (throwable) {
+        is PortalException -> enrollmentMessage(throwable.error)
+        is IllegalArgumentException, is IllegalStateException ->
+            throwable.message?.takeIf { it.isNotBlank() }
+                ?: "ثبت دستگاه انجام نشد؛ دوباره تلاش کنید."
+        else -> "اتصال به سرور برقرار نشد. اینترنت را بررسی کنید و دوباره تلاش کنید."
+    }
+
 internal object PortalErrors {
+
+    /**
+     * Codes returned by the invite/enroll endpoints (`{detail, code}`).
+     * Kept in one place so error mapping stays in sync with the server
+     * contract and the Persian copy in §15.3.
+     */
+    private val ENROLLMENT_CODES = setOf(
+        "invite_not_found",
+        "invite_expired",
+        "invite_used",
+        "invite_revoked",
+        "member_revoked",
+        "member_not_found",
+        "slot_taken",
+        "slots_full",
+        "csr_invalid",
+        "device_already_bound",
+        "not_manageable",
+        "proxy_error",
+        "ca_unavailable",
+        "enrollment_disabled",
+        "invalid_request_id",
+        "invite_ttl_invalid",
+        "legacy_unlimited"
+    )
 
     private val gson = Gson()
 
@@ -65,6 +139,10 @@ internal object PortalErrors {
         val envelope = parseEnvelope(raw)
         val code = envelope?.code.orEmpty()
         val detail = extractDetail(envelope, raw)
+
+        if (code.isNotBlank() && code in ENROLLMENT_CODES) {
+            return PortalError.DeviceEnrollment(code, detail)
+        }
 
         return when (response.code()) {
             400 -> when {

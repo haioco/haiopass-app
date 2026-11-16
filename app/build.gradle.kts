@@ -14,8 +14,8 @@ android {
         applicationId = "com.haio.bypass"
         minSdk = 26
         targetSdk = 34
-        versionCode = 12
-        versionName = "3.0.0"
+        versionCode = 13
+        versionName = "4.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -103,6 +103,8 @@ dependencies {
     implementation(libs.kotlinx.serialization)
     implementation(libs.androidx.browser)
     implementation(libs.androidx.security.crypto)
+    // Local QR generation for the single-use HaioGate invite links (no network).
+    implementation("com.google.zxing:core:3.5.3")
     implementation("com.google.android.material:material:1.11.0")
     // implementation("com.github.cafebazaar.Poolakey:poolakey:2.2.0")
 

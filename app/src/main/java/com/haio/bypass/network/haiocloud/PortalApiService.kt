@@ -79,6 +79,59 @@ interface PortalApiService {
         @Path("memberId") memberId: String
     ): Response<JsonObject>
 
+    // ── Device enrollment invites (public + owner) ────────────────────────
+    // Preview/enroll are intentionally called through anonymousApi: guests
+    // never get a portal session, bearer token or authenticator.
+    @GET("antisanction/invites/{token}/")
+    suspend fun invitePreview(@Path("token") token: String): Response<InvitePreview>
+
+    @POST("antisanction/invites/{token}/enroll/")
+    suspend fun enrollInvite(
+        @Path("token") token: String,
+        @Body body: EnrollRequestBody
+    ): Response<EnrollmentResult>
+
+    @POST("antisanction/{id}/primary/invite/")
+    suspend fun createPrimaryInvite(
+        @Path("id") id: String,
+        @Body body: InviteCreateBody
+    ): Response<InviteToken>
+
+    @POST("antisanction/{id}/primary/enroll/")
+    suspend fun enrollPrimary(
+        @Path("id") id: String,
+        @Body body: EnrollRequestBody
+    ): Response<EnrollmentResult>
+
+    @POST("antisanction/{id}/primary/reset-device/")
+    suspend fun resetPrimaryDevice(
+        @Path("id") id: String,
+        @Body body: DeviceResetBody
+    ): Response<DeviceResetResult>
+
+    @POST("antisanction/{id}/members/{memberId}/invite/")
+    suspend fun createMemberInvite(
+        @Path("id") id: String,
+        @Path("memberId") memberId: String,
+        @Body body: InviteCreateBody
+    ): Response<InviteToken>
+
+    @POST("antisanction/{id}/members/{memberId}/reset-device/")
+    suspend fun resetMemberDevice(
+        @Path("id") id: String,
+        @Path("memberId") memberId: String,
+        @Body body: DeviceResetBody
+    ): Response<DeviceResetResult>
+
+    @GET("antisanction/{id}/invites/")
+    suspend fun pendingInvites(@Path("id") id: String): Response<PendingInvitesResponse>
+
+    @POST("antisanction/{id}/invites/{inviteId}/cancel/")
+    suspend fun cancelInvite(
+        @Path("id") id: String,
+        @Path("inviteId") inviteId: String
+    ): Response<CancelInviteResult>
+
     // ── Billing ───────────────────────────────────────────────────────────
     @POST("billing/subscriptions/buy/")
     suspend fun buyPlan(@Body body: BuyPlanBody): Response<BuyPlanResult>

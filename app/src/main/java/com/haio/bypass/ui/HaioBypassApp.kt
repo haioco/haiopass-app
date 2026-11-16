@@ -1,6 +1,7 @@
 package com.haio.bypass.ui
 
 import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Arrangement
@@ -53,6 +54,7 @@ import com.haio.bypass.ui.screens.AccountScreen
 import com.haio.bypass.ui.screens.ConfigScreen
 import com.haio.bypass.ui.screens.DomainsScreen
 import com.haio.bypass.ui.screens.HaioGateDetailScreen
+import com.haio.bypass.ui.screens.JoinScreen
 import com.haio.bypass.ui.screens.LoginScreen
 import com.haio.bypass.ui.screens.MainScreen
 import com.haio.bypass.ui.screens.MembersScreen
@@ -62,6 +64,7 @@ import com.haio.bypass.ui.screens.ShahkarScreen
 import com.haio.bypass.ui.screens.StoreHubScreen
 import com.haio.bypass.ui.screens.WelcomeScreen
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
 sealed class Screen(val route: String, val title: String) {
@@ -80,6 +83,7 @@ sealed class Screen(val route: String, val title: String) {
         "انتخاب پکیج"
     )
     data object Members : Screen("haiogate/members/{accountId}", "کاربران کانفیگ")
+    data object Join : Screen("join?token={token}", "ثبت دستگاه")
 }
 
 private val HIDDEN_BOTTOM_BAR_ROUTES = setOf(
@@ -90,7 +94,8 @@ private val HIDDEN_BOTTOM_BAR_ROUTES = setOf(
     Screen.Shahkar.route,
     Screen.HaioGateDetail.route,
     Screen.PackagePicker.route,
-    Screen.Members.route
+    Screen.Members.route,
+    Screen.Join.route
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -101,7 +106,9 @@ fun HaioBypassApp(
     externalSnackMessage: StateFlow<String?>,
     purchaseRefreshTrigger: Int = 0,
     themeMode: String = HaioPrefs.THEME_SYSTEM,
-    onThemeModeChange: (String) -> Unit = {}
+    onThemeModeChange: (String) -> Unit = {},
+    inviteTokenFlow: StateFlow<String?>? = null,
+    onInviteTokenConsumed: () -> Unit = {}
 ) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         val context = LocalContext.current
@@ -253,6 +260,24 @@ fun HaioBypassApp(
         fun openPackages(mode: PurchaseMode, accountId: String?) {
             val accountSuffix = if (accountId.isNullOrBlank()) "" else "&accountId=$accountId"
             navController.navigate("haiogate/packages?mode=${mode.name}$accountSuffix")
+        }
+
+        fun openJoin(token: String?) {
+            val suffix = token?.takeIf { it.isNotBlank() }
+                ?.let { "?token=${Uri.encode(it)}" }
+                .orEmpty()
+            navController.navigate("join$suffix") {
+                launchSingleTop = true
+            }
+        }
+
+        val externalInviteToken by (inviteTokenFlow ?: remember { MutableStateFlow<String?>(null) })
+            .collectAsState()
+        LaunchedEffect(externalInviteToken) {
+            val token = externalInviteToken ?: return@LaunchedEffect
+            prefs.markWelcomeSeen()
+            openJoin(token)
+            onInviteTokenConsumed()
         }
 
         val startDestination = remember {
@@ -445,6 +470,10 @@ fun HaioBypassApp(
                             prefs.markWelcomeSeen()
                             navController.navigate(Screen.Config.route)
                         },
+                        onInvite = {
+                            prefs.markWelcomeSeen()
+                            openJoin(null)
+                        },
                         onLater = {
                             prefs.markWelcomeSeen()
                             navController.navigate(Screen.Main.route) {
@@ -512,6 +541,7 @@ fun HaioBypassApp(
                         },
                         configSourceLabel = when {
                             config.trojanConfig == null -> null
+                            config.isDeviceLocked -> "هایو گیت • قفل دستگاه"
                             prefs.activeConfigSource == HaioPrefs.SOURCE_HAIOGATE -> "هایو گیت"
                             prefs.activeConfigSource == HaioPrefs.SOURCE_LEGACY -> "پلن قبلی"
                             else -> if (isLoggedIn) "دستی" else "مهمان"
@@ -540,6 +570,18 @@ fun HaioBypassApp(
                         onConfigApplied = {
                             prefs.activeConfigSource = HaioPrefs.SOURCE_MANUAL
                             prefs.haiogateAccountId = null
+                            prefs.haiogateMemberId = null
+                            prefs.deviceFingerprint = null
+                            // An explicit raw/manual config switches back to
+                            // Xray and releases the decrypted device files.
+                            configManager.updateConfig {
+                                it.copy(
+                                    core = com.haio.bypass.config.AppConfig.CORE_XRAY,
+                                    deviceIdentityId = null,
+                                    trojanConfig = it.trojanConfig?.copy(deviceIdentityId = null)
+                                )
+                            }
+                            container.deviceKeys.deleteMaterializedFiles()
                         }
                     )
                 }
@@ -560,10 +602,6 @@ fun HaioBypassApp(
                 composable(Screen.Store.route) {
                     StoreHubScreen(
                         container = container,
-                        prefs = prefs,
-                        configManager = configManager,
-                        subscriptionInfo = subscriptionInfo,
-                        onRefreshSub = { scope.launch { fetchSubscription() } },
                         onLogin = { openLogin() },
                         onOpenConfig = { navController.navigate(Screen.Config.route) },
                         onOpenDetail = { accountId ->
@@ -585,7 +623,10 @@ fun HaioBypassApp(
                         onClearConfig = {
                             configManager.clear()
                             prefs.activeConfigSource = HaioPrefs.SOURCE_MANUAL
-                            prefs.haiogateAccountId = null
+                            prefs.clearHaiogateBinding()
+                            // Explicit clear: remove decrypted key/cert but keep
+                            // encrypted identities for a later re-apply.
+                            container.deviceKeys.deleteMaterializedFiles()
                         },
                         themeMode = themeMode,
                         onThemeModeChange = onThemeModeChange,
@@ -636,7 +677,21 @@ fun HaioBypassApp(
                             }
                             navController.popBackStack(Screen.Main.route, inclusive = false)
                         },
-                        onBack = { navController.popBackStack() }
+                        onBack = { navController.popBackStack() },
+                        onOpenStore = {
+                            navController.navigate(Screen.Store.route) {
+                                launchSingleTop = true
+                            }
+                        },
+                        onOpenDetail = { accountId ->
+                            navController.navigate("haiogate/detail/$accountId")
+                        },
+                        onRenew = { accountId ->
+                            openPackages(PurchaseMode.RENEW, accountId)
+                        },
+                        onShowSnackbar = { message ->
+                            scope.launch { snackbarHostState.showSnackbar(message) }
+                        }
                     )
                 }
 
@@ -722,6 +777,33 @@ fun HaioBypassApp(
                             }
                             scope.launch {
                                 snackbarHostState.showSnackbar("اکانت شما فعال شد.")
+                            }
+                        },
+                        onShowSnackbar = { msg ->
+                            scope.launch { snackbarHostState.showSnackbar(msg) }
+                        }
+                    )
+                }
+
+                composable(
+                    route = Screen.Join.route,
+                    arguments = listOf(
+                        navArgument("token") {
+                            type = NavType.StringType
+                            defaultValue = ""
+                        }
+                    )
+                ) { entry ->
+                    val token = entry.arguments?.getString("token").orEmpty()
+                    JoinScreen(
+                        container = container,
+                        initialToken = token,
+                        requestVpnPermission = requestVpnPermission,
+                        onBack = { navController.popBackStack() },
+                        onConnected = {
+                            navController.navigate(Screen.Main.route) {
+                                popUpTo(Screen.Join.route) { inclusive = true }
+                                launchSingleTop = true
                             }
                         },
                         onShowSnackbar = { msg ->

@@ -3,10 +3,14 @@ package com.haio.bypass.proxy
 import android.content.Context
 import android.net.VpnService
 import android.util.Log
+import com.haio.bypass.config.AppConfig
 import com.haio.bypass.config.ConfigManager
 import com.haio.bypass.config.TrojanConfig
 import com.haio.bypass.domain.DomainFetcher
 import com.haio.bypass.domain.DomainStore
+import com.haio.bypass.security.DeviceIdentity
+import com.haio.bypass.security.DeviceIdentityStore
+import com.haio.bypass.security.DeviceIdentityStore.MaterializedFiles
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,7 +30,13 @@ class ProxyManager(
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val domainFetcher = DomainFetcher(context)
     private val xrayManager = XrayManager(context, vpnService)
+    private val singBoxManager = SingBoxManager(context, vpnService)
     private val configGenerator = XrayConfigGenerator()
+    private val singBoxConfigGenerator = SingBoxConfigGenerator()
+    private val deviceIdentityStore = DeviceIdentityStore(context)
+    private var activeCore: ProxyCore = xrayManager
+    private var activeIdentity: DeviceIdentity? = null
+    private var activeMaterialized: MaterializedFiles? = null
     private var refreshJob: Job? = null
     private var configReloadJob: Job? = null
     private var activeTrojanConfig: TrojanConfig? = null
@@ -42,7 +52,16 @@ class ProxyManager(
             _statusMessage.value = "در حال راه‌اندازی روتر ابری..."
 
             val socksPort = configManager.getConfig().socksPort
-            val configJson = configGenerator.generateConfig(
+            val lockedByCore = configManager.getConfig().core == AppConfig.CORE_SINGBOX
+            val locked = lockedByCore || trojanConfig.isDeviceLocked
+            activeCore = if (locked) singBoxManager else xrayManager
+            activeIdentity = if (locked) {
+                deviceIdentityStore.find(trojanConfig.deviceIdentityId)
+                    ?: throw ProxyStartException("device identity missing")
+            } else {
+                null
+            }
+            val configJson = buildActiveConfig(
                 socksPort = socksPort,
                 trojanConfig = trojanConfig,
                 bypassDomains = domainStore.getDomains(),
@@ -51,29 +70,38 @@ class ProxyManager(
             )
             Log.i(
                 TAG,
-                "routing config: ${domainStore.getDomainCount()} domains, " +
+                "routing config (${if (locked) "sing-box" else "xray"}): " +
+                    "${domainStore.getDomainCount()} domains, " +
                     "${domainStore.getExcludedDomains().size} direct, " +
                     "${domainStore.getUdpAllow().size} udp allow entries"
             )
 
-            // Probe the real server while Xray is starting so the health check
-            // does not add another sequential delay to connection setup.
-            healthJob = scope.async { TunnelHealthChecker.check(trojanConfig) }
+            // The plain TLS probe cannot prove mTLS accepts our client
+            // certificate (the server deliberately allows cert-less
+            // handshakes to reach camouflage). Skip it for locked configs;
+            // sing-box readiness plus the first proxied request is the probe.
+            if (!locked) {
+                healthJob = scope.async { TunnelHealthChecker.check(trojanConfig) }
+            }
 
-            val xrayStarted = xrayManager.start(configJson, socksPort)
-            if (!xrayStarted) {
-                throw ProxyStartException("xray failed to start")
+            val coreStarted = activeCore.start(configJson, socksPort)
+            if (!coreStarted) {
+                throw ProxyStartException(
+                    if (locked) "sing-box failed to start" else "xray failed to start"
+                )
             }
 
             _statusMessage.value = "در حال اتصال تونل..."
-            val tun2socksStarted = xrayManager.startTun2Socks(tunFd, socksPort)
+            val tun2socksStarted = activeCore.startTun2Socks(tunFd, socksPort)
             if (!tun2socksStarted) {
                 throw ProxyStartException("tun2socks failed to start")
             }
 
-            _statusMessage.value = "در حال بررسی اتصال..."
-            if (!healthJob.await()) {
-                throw ProxyStartException("health check failed")
+            if (!locked) {
+                _statusMessage.value = "در حال بررسی اتصال..."
+                if (healthJob?.await() != true) {
+                    throw ProxyStartException("health check failed")
+                }
             }
 
             lastAppliedConfig = configJson
@@ -97,6 +125,8 @@ class ProxyManager(
                     "سرور روتر ابری در دسترس نیست"
                 e.message?.contains("tun2socks", ignoreCase = true) == true ->
                     "راه‌اندازی تونل ناموفق بود"
+                e.message?.contains("identity", ignoreCase = true) == true ->
+                    "هویت دستگاه پیدا نشد؛ لطفاً دوباره ثبت دستگاه کنید"
                 else -> "اتصال به روتر ابری برقرار نشد"
             }
             throw ProxyStartException(e.message ?: "unknown error")
@@ -110,17 +140,72 @@ class ProxyManager(
         configReloadJob = null
 
         try {
-            xrayManager.stop()
+            activeCore.stop()
         } catch (e: Exception) {
-            Log.e(TAG, "Error stopping xray", e)
+            Log.e(TAG, "Error stopping active proxy core", e)
         }
+        // Stop both cores defensively: a failed switch must not leave an
+        // orphan process holding the SOCKS port.
+        if (activeCore !== xrayManager) runCatching { xrayManager.stop() }
+        if (activeCore !== singBoxManager) runCatching { singBoxManager.stop() }
+        releaseIdentityFiles()
 
+        activeCore = xrayManager
         activeTrojanConfig = null
         lastAppliedConfig = null
         _proxyState.value = ProxyState.DISCONNECTED
         _statusMessage.value = "قطع شد"
 
         configManager.updateConfig { it.copy(enabled = false) }
+    }
+
+    /**
+     * Builds the config for the selected core. Locked configs materialize the
+     * decrypted key/cert (0600) only for the lifetime of the tunnel.
+     */
+    private fun buildActiveConfig(
+        socksPort: Int,
+        trojanConfig: TrojanConfig,
+        bypassDomains: List<String>,
+        directDomains: List<String>,
+        udpAllow: List<String>
+    ): String {
+        val identity = activeIdentity
+        if (identity == null) {
+            return configGenerator.generateConfig(
+                socksPort = socksPort,
+                trojanConfig = trojanConfig,
+                bypassDomains = bypassDomains,
+                directDomains = directDomains,
+                udpAllow = udpAllow
+            )
+        }
+
+        val files = activeMaterialized ?: try {
+            deviceIdentityStore.materialize(identity)
+        } catch (exception: Exception) {
+            throw ProxyStartException("device identity unavailable: ${exception.message}")
+        }.also { activeMaterialized = it }
+
+        return singBoxConfigGenerator.generateConfig(
+            socksPort = socksPort,
+            trojanConfig = trojanConfig,
+            clientCertificatePath = files.certFile.absolutePath,
+            clientPrivateKeyPath = files.keyFile.absolutePath,
+            bypassDomains = bypassDomains,
+            directDomains = directDomains,
+            udpAllow = udpAllow
+        )
+    }
+
+    private fun releaseIdentityFiles() {
+        activeIdentity = null
+        activeMaterialized = null
+        try {
+            deviceIdentityStore.deleteMaterializedFiles()
+        } catch (exception: Exception) {
+            Log.w(TAG, "Could not delete materialized device key", exception)
+        }
     }
 
     fun refreshDomains(scope: CoroutineScope) {
@@ -140,9 +225,9 @@ class ProxyManager(
     }
 
     /**
-     * Applies bypass-list changes to a running tunnel by restarting only
-     * Xray. tun2socks and the TUN interface stay up, so the user does not see
-     * a disconnect and domain changes apply immediately.
+     * Applies bypass-list changes to a running tunnel by restarting only the
+     * active proxy core. tun2socks and the TUN interface stay up, so the user
+     * does not see a disconnect and domain changes apply immediately.
      */
     private fun startConfigObserver() {
         configReloadJob?.cancel()
@@ -160,7 +245,7 @@ class ProxyManager(
 
                     val routingConfig = activeTrojanConfig ?: return@collect
                     val socksPort = configManager.getConfig().socksPort
-                    val newConfig = configGenerator.generateConfig(
+                    val newConfig = buildActiveConfig(
                         socksPort = socksPort,
                         trojanConfig = routingConfig,
                         bypassDomains = domains,
@@ -171,7 +256,7 @@ class ProxyManager(
 
                     val previousConfig = lastAppliedConfig
                     _statusMessage.value = "در حال به‌روزرسانی مسیرها..."
-                    val applied = xrayManager.reload(newConfig, socksPort)
+                    val applied = activeCore.reload(newConfig, socksPort)
 
                     if (applied) {
                         lastAppliedConfig = newConfig
@@ -179,11 +264,12 @@ class ProxyManager(
                     } else {
                         Log.e(TAG, "Failed to apply routing config, rolling back")
                         val rolledBack = previousConfig != null &&
-                                xrayManager.reload(previousConfig, socksPort)
+                                activeCore.reload(previousConfig, socksPort)
                         if (rolledBack) {
                             _statusMessage.value = connectedMessage()
                         } else {
-                            xrayManager.stop()
+                            activeCore.stop()
+                            releaseIdentityFiles()
                             _proxyState.value = ProxyState.DISCONNECTED
                             _statusMessage.value = "خطا در اعمال تغییرات مسیر"
                         }

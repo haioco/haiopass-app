@@ -6,7 +6,8 @@ package com.haio.bypass.network.haiocloud
 class AuthRepository(
     private val client: PortalClient,
     private val store: PortalTokenStore,
-    private val session: PortalSession
+    private val session: PortalSession,
+    private val onLogout: () -> Unit = {}
 ) {
 
     suspend fun requestOtp(mobile: String): OtpRequestResult = portalCall {
@@ -61,5 +62,9 @@ class AuthRepository(
 
     fun logout() {
         session.logout()
+        // The decrypted key/cert must never survive logout. Encrypted
+        // identities stay in app-private storage so re-applying an account
+        // does not require re-enrollment.
+        onLogout()
     }
 }

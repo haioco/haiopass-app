@@ -1,10 +1,12 @@
 package com.haio.bypass.ui.screens
 
 import android.content.Context
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,9 +21,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Schedule
@@ -226,7 +230,10 @@ fun HaioGateScreen(
                 active.forEach { account ->
                     AccountCard(
                         account = account,
+                        isActive = state.activeAccountId == account.id,
+                        applying = state.applyingAccountId == account.id,
                         onOpen = { onOpenDetail(account.id.orEmpty()) },
+                        onApply = { viewModel.applyConfig(account.id.orEmpty()) },
                         onRenew = { onRenew(account.id.orEmpty()) }
                     )
                     Spacer(Modifier.height(10.dp))
@@ -238,7 +245,10 @@ fun HaioGateScreen(
                 expired.forEach { account ->
                     AccountCard(
                         account = account,
+                        isActive = state.activeAccountId == account.id,
+                        applying = state.applyingAccountId == account.id,
                         onOpen = { onOpenDetail(account.id.orEmpty()) },
+                        onApply = { viewModel.applyConfig(account.id.orEmpty()) },
                         onRenew = { onRenew(account.id.orEmpty()) }
                     )
                     Spacer(Modifier.height(10.dp))
@@ -250,7 +260,10 @@ fun HaioGateScreen(
                 support.forEach { account ->
                     AccountCard(
                         account = account,
+                        isActive = state.activeAccountId == account.id,
+                        applying = false,
                         onOpen = { onOpenDetail(account.id.orEmpty()) },
+                        onApply = {},
                         onRenew = null
                     )
                     Spacer(Modifier.height(10.dp))
@@ -478,10 +491,14 @@ private fun EmptyAccountsCard(onBuy: () -> Unit, packagesAvailable: Boolean) {
 @Composable
 private fun AccountCard(
     account: HaioGateAccount,
+    isActive: Boolean,
+    applying: Boolean,
     onOpen: () -> Unit,
+    onApply: () -> Unit,
     onRenew: (() -> Unit)?
 ) {
     val category = account.category
+    val canApply = category == AccountCategory.ACTIVE
     val statusColor = when (category) {
         AccountCategory.ACTIVE -> StatusGreen
         AccountCategory.EXPIRED -> StatusRed
@@ -495,7 +512,14 @@ private fun AccountCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        border = if (isActive) BorderStroke(1.dp, StatusGreen.copy(alpha = 0.55f)) else null,
+        colors = CardDefaults.cardColors(
+            containerColor = if (isActive) {
+                StatusGreen.copy(alpha = 0.045f)
+            } else {
+                MaterialTheme.colorScheme.surface
+            }
+        )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -533,8 +557,16 @@ private fun AccountCard(
                         )
                     }
                 }
-                if (account.isLegacy == true) {
-                    PortalChip(text = "قدیمی", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (isActive) {
+                        PortalChip(text = "کانفیگ فعال", color = StatusGreen)
+                    }
+                    if (account.isDeviceLocked) {
+                        PortalChip(text = "قفل دستگاه", color = MaterialTheme.colorScheme.primary)
+                    }
+                    if (account.isLegacy == true) {
+                        PortalChip(text = "قدیمی", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
 
@@ -587,36 +619,85 @@ private fun AccountCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(onClick = onOpen) {
-                    Text("جزئیات اکانت", fontSize = 12.sp)
-                    Spacer(Modifier.width(4.dp))
+                TextButton(
+                    onClick = onOpen,
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
+                ) {
+                    Text("جزئیات", fontSize = 12.sp)
+                    Spacer(Modifier.width(2.dp))
                     Icon(
                         Icons.Default.ArrowForward,
                         contentDescription = null,
                         modifier = Modifier.size(14.dp)
                     )
                 }
-                if (onRenew != null) {
-                    Button(
-                        onClick = onRenew,
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text("تمدید", fontSize = 12.sp)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (isActive) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = StatusGreen,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(Modifier.width(3.dp))
+                            Text(
+                                text = "در حال استفاده",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = StatusGreen
+                            )
+                        }
+                    } else if (canApply && onRenew != null) {
+                        OutlinedButton(
+                            onClick = onApply,
+                            enabled = !applying,
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            if (applying) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(14.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Default.Link,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text("اعمال", fontSize = 12.sp)
+                            }
+                        }
                     }
-                } else {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.Warning,
-                            contentDescription = null,
-                            tint = StatusYellow,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            text = "نیازمند بررسی پشتیبانی",
-                            fontSize = 11.sp,
-                            color = StatusYellow
-                        )
+
+                    if (onRenew != null) {
+                        Button(
+                            onClick = onRenew,
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                        ) {
+                            Text("تمدید", fontSize = 12.sp)
+                        }
+                    } else {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = StatusYellow,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                text = "پشتیبانی",
+                                fontSize = 11.sp,
+                                color = StatusYellow
+                            )
+                        }
                     }
                 }
             }

@@ -102,6 +102,24 @@ class HaioPrefs(context: Context) {
         get() = prefs.getString(KEY_HAIOGATE_ACCOUNT_ID, null)
         set(value) = prefs.edit().putString(KEY_HAIOGATE_ACCOUNT_ID, value).apply()
 
+    /** Member slot of the active device-locked credential; null for primary. */
+    var haiogateMemberId: String?
+        get() = prefs.getString(KEY_HAIOGATE_MEMBER_ID, null)
+        set(value) = prefs.edit().putString(KEY_HAIOGATE_MEMBER_ID, value).apply()
+
+    /** Leaf fingerprint of the active device identity (public, not a secret). */
+    var deviceFingerprint: String?
+        get() = prefs.getString(KEY_DEVICE_FINGERPRINT, null)
+        set(value) = prefs.edit().putString(KEY_DEVICE_FINGERPRINT, value).apply()
+
+    fun clearHaiogateBinding() {
+        prefs.edit()
+            .remove(KEY_HAIOGATE_ACCOUNT_ID)
+            .remove(KEY_HAIOGATE_MEMBER_ID)
+            .remove(KEY_DEVICE_FINGERPRINT)
+            .apply()
+    }
+
     /** First-launch welcome was answered; do not show it again. */
     val welcomeSeen: Boolean
         get() = prefs.getBoolean(KEY_WELCOME_SEEN, false)
@@ -138,6 +156,8 @@ class HaioPrefs(context: Context) {
         private const val KEY_USER_ID = "user_id"
         private const val KEY_ACTIVE_CONFIG_SOURCE = "active_config_source"
         private const val KEY_HAIOGATE_ACCOUNT_ID = "haiogate_account_id"
+        private const val KEY_HAIOGATE_MEMBER_ID = "haiogate_member_id"
+        private const val KEY_DEVICE_FINGERPRINT = "device_fingerprint"
         private const val KEY_WELCOME_SEEN = "welcome_seen"
         private const val KEY_TROJAN_CONFIG_URL = "trojan_config_url"
         private const val KEY_JWT_ACCESS = "jwt_access_token"

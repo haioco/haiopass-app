@@ -4,6 +4,8 @@ import android.content.Context
 import com.haio.bypass.BuildConfig
 import com.haio.bypass.HaioPrefs
 import com.haio.bypass.config.ConfigManager
+import com.haio.bypass.security.DeviceIdentityStore
+import com.haio.bypass.security.DeviceKeyManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -26,14 +28,27 @@ class PortalContainer private constructor(context: Context) {
     val sessionStore: PortalSessionStore = PortalSessionStore(appContext)
     val session: PortalSession = PortalSession(sessionStore)
 
+    val deviceIdentity: DeviceIdentityStore = DeviceIdentityStore(appContext)
+    val deviceKeys: DeviceKeyManager = DeviceKeyManager(
+        store = deviceIdentity,
+        configManager = configManager,
+        prefs = prefs
+    )
+
     val client: PortalClient = PortalClient(
         baseUrl = BuildConfig.HAIO_PORTAL_BASE_URL,
         store = sessionStore,
         onSessionExpired = { session.expire() }
     )
 
-    val auth: AuthRepository = AuthRepository(client, sessionStore, session)
+    val auth: AuthRepository = AuthRepository(
+        client = client,
+        store = sessionStore,
+        session = session,
+        onLogout = { deviceIdentity.deleteMaterializedFiles() }
+    )
     val haioGate: HaioGateRepository = HaioGateRepository(client)
+    val invites: InviteRepository = InviteRepository(client)
     val billing: BillingRepository = BillingRepository(client)
     val orgs: OrgRepository = OrgRepository(client)
     val pendingStore: PendingPurchaseStore = PendingPurchaseStore(appContext)
