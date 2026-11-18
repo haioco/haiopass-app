@@ -47,6 +47,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import com.haio.bypass.BuildConfig
 import com.haio.bypass.config.InviteLinkParser
 import com.haio.bypass.network.haiocloud.InvitePreview
@@ -155,6 +158,29 @@ fun JoinScreen(
         }
     }
 
+    val scanLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
+        val contents = result.contents
+        if (!contents.isNullOrBlank()) {
+            input = contents
+            val token = InviteLinkParser.parse(contents)
+            if (token == null) {
+                state = JoinUiState.Failed("لینک دعوت معتبر نیست.", null)
+            } else {
+                scope.launch { loadPreview(token) }
+            }
+        }
+    }
+
+    fun launchScanner() {
+        val options = ScanOptions().apply {
+            setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+            setPrompt("QR دعوت هایو را اسکن کنید")
+            setBeepEnabled(false)
+            setOrientationLocked(false)
+        }
+        scanLauncher.launch(options)
+    }
+
     LaunchedEffect(initialToken) {
         val token = InviteLinkParser.parse(initialToken) ?: return@LaunchedEffect
         input = token
@@ -246,6 +272,14 @@ fun JoinScreen(
                     Icon(Icons.Default.Link, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
                     Text("بررسی لینک", fontSize = 14.sp)
+                }
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = { launchScanner() },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("اسکن QR", fontSize = 14.sp)
                 }
 
                 val retryToken = failed?.token

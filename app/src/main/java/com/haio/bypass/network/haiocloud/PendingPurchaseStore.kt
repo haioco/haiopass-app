@@ -55,7 +55,7 @@ class PendingPurchaseStore(context: Context) {
     }
 
     fun clear() {
-        prefs.edit().remove(KEY_PENDING).commit()
+        runCatching { prefs.edit().remove(KEY_PENDING).commit() }
     }
 
     private companion object {

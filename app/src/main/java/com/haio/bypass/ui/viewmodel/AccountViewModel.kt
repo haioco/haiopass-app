@@ -16,8 +16,9 @@ class AccountViewModel(private val container: PortalContainer) : ViewModel() {
 
     fun logout() {
         // Clears portal tokens/cache and the pending-purchase record only;
-        // the active VPN config and its source are preserved.
-        container.purchase.clearPending()
-        container.auth.logout()
+        // the active VPN config and its source are preserved. Storage failures
+        // must never crash the app during logout.
+        runCatching { container.purchase.clearPending() }
+        runCatching { container.auth.logout() }
     }
 }

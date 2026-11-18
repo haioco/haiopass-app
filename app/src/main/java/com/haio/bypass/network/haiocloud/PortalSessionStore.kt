@@ -96,7 +96,11 @@ class PortalSessionStore(context: Context) : PortalTokenStore {
         memoryAccess = null
         memoryRefresh = null
         memoryUserJson = null
-        prefs?.edit()?.clear()?.commit()
+        // A revoked Keystore key or a corrupted EncryptedSharedPreferences file
+        // can throw here. Logout must still complete in memory; never crash the
+        // app while clearing a session.
+        runCatching { prefs?.edit()?.clear()?.commit() }
+            .onFailure { Log.w(TAG, "Could not clear encrypted session store", it) }
     }
 
     private fun openEncryptedStore(): SharedPreferences {

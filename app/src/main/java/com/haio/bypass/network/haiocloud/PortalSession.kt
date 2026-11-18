@@ -55,7 +55,7 @@ class PortalSession(private val store: PortalSessionStore) {
     }
 
     fun logout() {
-        store.clear()
+        runCatching { store.clear() }
         _state.value = SessionState.LoggedOut(expired = false)
     }
 

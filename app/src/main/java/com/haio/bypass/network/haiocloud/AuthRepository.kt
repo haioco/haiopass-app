@@ -64,7 +64,8 @@ class AuthRepository(
         session.logout()
         // The decrypted key/cert must never survive logout. Encrypted
         // identities stay in app-private storage so re-applying an account
-        // does not require re-enrollment.
-        onLogout()
+        // does not require re-enrollment. A filesystem/Keystore failure must
+        // not turn logout into an app crash.
+        runCatching { onLogout() }
     }
 }
